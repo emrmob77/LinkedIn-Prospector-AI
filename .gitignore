@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build / Next.js
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug & logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Testing (Playwright / Jest / Vitest)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+coverage/
+
+# Vercel
+.vercel
+
+# IDE & OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Supabase local (opsiyonel)
+.branches
+.temp
+
+# Misc
+*.pem
+.turbo
