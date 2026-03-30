@@ -20,7 +20,7 @@ Bu görev listesi MVP özelliklerini kapsar:
 
 ## Görevler
 
-- [ ] 1. Proje yapısını ve çekirdek altyapıyı kur
+- [x] 1. Proje yapısını ve çekirdek altyapıyı kur
   - TypeScript, Tailwind CSS ve ESLint ile Next.js 14 projesini başlat
   - Supabase client ve environment variable'ları yapılandır
   - shadcn/ui bileşen kütüphanesini kur
