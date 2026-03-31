@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -54,6 +54,10 @@ interface LeadDetailPanelProps {
 
 export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
   const [currentStage, setCurrentStage] = useState(lead?.stage ?? "");
+
+  useEffect(() => {
+    setCurrentStage(lead?.stage ?? "");
+  }, [lead?.id, lead?.stage]);
 
   if (!lead) return null;
 
