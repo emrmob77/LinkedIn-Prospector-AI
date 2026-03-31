@@ -56,7 +56,7 @@ Bu görev listesi MVP özelliklerini kapsar:
   - Enum tipleri oluştur: `PipelineStage`, `MessageStatus`, `SearchRunStatus`, `ActionType`
   - _Gereksinimler: 4.1, 5.4, 9.1-9.5_
 
-- [ ] 4. Supabase Auth ile kimlik doğrulama kur
+- [x] 4. Supabase Auth ile kimlik doğrulama kur
   - [ ] 4.1 Kimlik doğrulama sayfalarını oluştur
     - Email/şifre formu ile login sayfası uygula
     - Email/şifre formu ile signup sayfası uygula

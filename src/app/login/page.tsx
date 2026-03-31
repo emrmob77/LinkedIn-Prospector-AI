@@ -2,27 +2,44 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
+import { createClient } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const router = useRouter();
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    // TODO: Supabase auth entegrasyonu
-    setTimeout(() => {
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(
+        error.message === "Invalid login credentials"
+          ? "E-posta veya şifre hatalı"
+          : error.message
+      );
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    router.push("/dashboard");
   };
 
   return (
@@ -43,7 +60,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
                 {error}
               </div>
             )}
@@ -59,15 +76,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Şifre</Label>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-primary"
-                >
-                  Şifremi Unuttum
-                </button>
-              </div>
+              <Label htmlFor="password">Şifre</Label>
               <Input
                 id="password"
                 type="password"

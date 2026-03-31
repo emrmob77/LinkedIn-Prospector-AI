@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   {
@@ -46,6 +47,17 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
+
+  const userEmail = user?.email ?? "";
+  const userName = user?.user_metadata?.full_name ?? userEmail.split("@")[0] ?? "Kullanıcı";
+  const initials = userName
+    .split(" ")
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "?";
 
   return (
     <aside className="hidden md:flex h-screen w-[260px] flex-col border-r bg-card">
@@ -114,14 +126,20 @@ export function Sidebar() {
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-              EU
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Emrah U.</p>
-            <p className="text-[11px] text-muted-foreground truncate">emrah@example.com</p>
+            <p className="text-sm font-medium truncate">{userName}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{userEmail}</p>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={signOut}
+            aria-label="Çıkış yap"
+          >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
