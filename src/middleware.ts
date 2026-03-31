@@ -7,10 +7,15 @@ export async function middleware(request: NextRequest) {
     const response = await updateSession(request);
     // Redirect response ise, API client'a 401 JSON dön
     if (response.status === 307 || response.status === 308) {
-      return NextResponse.json(
+      const jsonResponse = NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Kimlik doğrulama gerekli' } },
         { status: 401 }
       );
+      // Forward session cookies (cleanup/refresh) from Supabase auth flow
+      response.cookies.getAll().forEach((cookie) => {
+        jsonResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return jsonResponse;
     }
     return response;
   }
