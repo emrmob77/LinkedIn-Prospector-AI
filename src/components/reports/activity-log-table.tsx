@@ -137,7 +137,7 @@ export function ActivityLogTable() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">

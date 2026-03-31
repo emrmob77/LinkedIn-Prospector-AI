@@ -61,12 +61,12 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Şifre</Label>
-                <Link
-                  href="/login"
+                <button
+                  type="button"
                   className="text-xs text-muted-foreground hover:text-primary"
                 >
                   Şifremi Unuttum
-                </Link>
+                </button>
               </div>
               <Input
                 id="password"

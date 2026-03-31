@@ -126,7 +126,7 @@ export function PipelineTable({ onSelectLead }: PipelineTableProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -143,6 +143,7 @@ export function PipelineTable({ onSelectLead }: PipelineTableProps) {
               {filteredLeads.map((lead) => {
                 const initials = lead.name
                   .split(" ")
+                  .filter(Boolean)
                   .map((n) => n[0])
                   .join("")
                   .toUpperCase();
@@ -184,7 +185,7 @@ export function PipelineTable({ onSelectLead }: PipelineTableProps) {
                       {lead.lastActivity}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Seçenekler">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </TableCell>

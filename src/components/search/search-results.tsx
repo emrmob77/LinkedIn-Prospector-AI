@@ -140,7 +140,7 @@ export function SearchResults() {
             <PostCard
               key={post.id}
               post={post}
-              onExtractLead={(id) => console.log("Lead cikar:", id)}
+              onExtractLead={() => {}}
             />
           ))}
         </div>

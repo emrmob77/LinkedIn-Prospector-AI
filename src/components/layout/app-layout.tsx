@@ -29,7 +29,7 @@ export function AppLayout({
           </div>
           <div className="flex items-center gap-2">
             {actions}
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" aria-label="Bildirimler">
               <Bell className="h-4 w-4" />
               <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
                 3

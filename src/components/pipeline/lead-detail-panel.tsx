@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -52,10 +53,13 @@ interface LeadDetailPanelProps {
 }
 
 export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
+  const [currentStage, setCurrentStage] = useState(lead?.stage ?? "");
+
   if (!lead) return null;
 
   const initials = lead.name
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()
@@ -88,7 +92,7 @@ export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
               </div>
               <Button variant="link" size="sm" className="px-0 h-auto text-xs mt-1">
                 <LinkedinIcon className="mr-1 h-3 w-3" />
-                LinkedIn Profilini Ac
+                LinkedIn Profilini Aç
                 <ExternalLink className="ml-1 h-3 w-3" />
               </Button>
             </div>
@@ -106,8 +110,8 @@ export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Pipeline Asamasi</p>
-              <Select defaultValue={lead.stage}>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Pipeline Aşaması</p>
+              <Select value={currentStage || lead.stage} onValueChange={setCurrentStage}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -129,7 +133,7 @@ export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
             <div>
               <p className="text-sm font-medium mb-2 flex items-center gap-1">
                 <Target className="h-4 w-4 text-red-500" />
-                Sorun Noktalari
+                Sorun Noktaları
               </p>
               <div className="flex flex-wrap gap-1">
                 {lead.painPoints.map((point, i) => (
@@ -143,7 +147,7 @@ export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
 
           {lead.keyInterests.length > 0 && (
             <div>
-              <p className="text-sm font-medium mb-2">Ilgi Alanlari</p>
+              <p className="text-sm font-medium mb-2">İlgi Alanları</p>
               <div className="flex flex-wrap gap-1">
                 {lead.keyInterests.map((interest, i) => (
                   <Badge key={i} variant="secondary" className="text-xs">
@@ -161,18 +165,18 @@ export function LeadDetailPanel({ open, onClose, lead }: LeadDetailPanelProps) {
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium flex items-center gap-1">
                 <MessageSquare className="h-4 w-4" />
-                Mesaj Olustur
+                Mesaj Oluştur
               </p>
             </div>
             <div className="space-y-3">
               <Button className="w-full">
                 <MessageSquare className="mr-2 h-4 w-4" />
-                AI ile Mesaj Olustur
+                AI ile Mesaj Oluştur
               </Button>
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground text-center">
-                  Mesaj olusturmak icin yukaridaki butona tiklayin
+                  Mesaj oluşturmak için yukarıdaki butona tıklayın
                 </p>
               </div>
             </div>

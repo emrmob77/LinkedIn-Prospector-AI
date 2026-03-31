@@ -27,6 +27,7 @@ interface PostCardProps {
 export function PostCard({ post, onExtractLead }: PostCardProps) {
   const initials = post.authorName
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()
