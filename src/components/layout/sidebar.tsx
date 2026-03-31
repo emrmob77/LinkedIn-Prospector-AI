@@ -49,8 +49,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
 
-  const userEmail = user?.email ?? "";
-  const userName = user?.user_metadata?.full_name ?? userEmail.split("@")[0] ?? "Kullanıcı";
+  const userEmail = user?.email || "";
+  const userName = user?.user_metadata?.full_name || userEmail.split("@")[0] || "Kullanıcı";
   const initials = userName
     .split(" ")
     .filter(Boolean)
