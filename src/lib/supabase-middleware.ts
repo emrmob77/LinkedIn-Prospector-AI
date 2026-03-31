@@ -1,6 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+function forwardCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie.name, cookie.value, cookie);
+  });
+  return to;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -29,7 +36,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Auth sayfaları hariç, giriş yapmamış kullanıcıları login'e yönlendir
   const isAuthPage =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup') ||
@@ -38,14 +44,13 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url);
+    return forwardCookies(supabaseResponse, NextResponse.redirect(url));
   }
 
-  // Giriş yapmış kullanıcıları auth sayfalarından dashboard'a yönlendir
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    return forwardCookies(supabaseResponse, NextResponse.redirect(url));
   }
 
   return supabaseResponse;
