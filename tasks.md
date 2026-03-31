@@ -29,7 +29,7 @@ Bu görev listesi MVP özelliklerini kapsar:
   - Test framework'ünü kur (Jest + fast-check)
   - _Gereksinimler: 10.1, 10.2, 16.1_
 
-- [ ] 2. Veritabanı şeması ve migration'ları oluştur
+- [x] 2. Veritabanı şeması ve migration'ları oluştur
   - [ ] 2.1 Tüm tablolar için Supabase migration oluştur
     - Tüm alanlar ve indekslerle `posts` tablosu için SQL migration yaz
     - Tüm alanlar ve indekslerle `leads` tablosu için SQL migration yaz
@@ -49,7 +49,7 @@ Bu görev listesi MVP özelliklerini kapsar:
     - **Doğrular: Gereksinim 9.6**
 
 
-- [ ] 3. TypeScript tip tanımlarını uygula
+- [x] 3. TypeScript tip tanımlarını uygula
   - Tüm veri modelleri için tip tanımları oluştur: `Post`, `Lead`, `Message`, `ActivityLog`, `SearchRun`
   - API request ve response'ları için tip tanımları oluştur
   - Servis arayüzleri için tip tanımları oluştur: `ScraperService`, `AIClassificationService`, `ParserService`, `DeduplicationService`
