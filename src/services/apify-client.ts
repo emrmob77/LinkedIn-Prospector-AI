@@ -1,30 +1,29 @@
-import { ApifyClient } from 'apify-client';
 import type { ApifyPost, ApifySearchParams, ApifyRunResult } from '@/types/apify';
 
 // ============================================
-// Apify Client yapılandırması
+// Apify REST API client (fetch tabanlı, webpack uyumlu)
 // ============================================
 
-const ACTOR_ID = 'supreme_coder/linkedin-post';
+const ACTOR_ID = 'supreme_coder~linkedin-post';
+const APIFY_BASE_URL = 'https://api.apify.com/v2';
 const DEFAULT_MAX_POSTS = 50;
 const MAX_RETRY_COUNT = 3;
 const RETRY_BASE_DELAY_MS = 1000;
+const POLL_INTERVAL_MS = 5000;
+const MAX_WAIT_MS = 300000; // 5 dakika
 
-function getClient(): ApifyClient {
+function getToken(): string {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) {
     throw new Error('APIFY_API_TOKEN environment variable tanımlı değil');
   }
-  return new ApifyClient({ token });
+  return token;
 }
 
 // ============================================
 // Arama URL oluşturucu
 // ============================================
 
-/**
- * LinkedIn arama parametrelerinden arama URL'si oluşturur.
- */
 export function buildSearchUrl(params: ApifySearchParams): string {
   const keywords = params.keywords.join(' ');
   const url = new URL('https://www.linkedin.com/search/results/content/');
@@ -43,120 +42,165 @@ export function buildSearchUrl(params: ApifySearchParams): string {
   return url.toString();
 }
 
-/**
- * LinkedIn şirket sayfası URL'si oluşturur.
- */
 export function buildCompanyPostsUrl(companySlug: string): string {
   return `https://www.linkedin.com/company/${companySlug}/posts/?feedView=all`;
 }
 
 // ============================================
-// Apify Actor çalıştırma
+// Apify REST API çağrıları
 // ============================================
 
-/**
- * Apify Actor'ü çalıştırır ve sonuçları döndürür.
- */
-export async function runSearch(params: ApifySearchParams): Promise<ApifyRunResult> {
-  const client = getClient();
-  const searchUrl = buildSearchUrl(params);
-  const maxPosts = params.maxPosts ?? DEFAULT_MAX_POSTS;
-
-  const input = {
-    urls: [searchUrl],
-    maxPosts,
-  };
-
-  const run = await client.actor(ACTOR_ID).call(input, {
-    waitSecs: 300,
+async function startActorRun(input: Record<string, unknown>): Promise<{ id: string; defaultDatasetId: string; status: string }> {
+  const token = getToken();
+  const res = await fetch(`${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
   });
 
-  if (!run.defaultDatasetId) {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Apify Actor başlatılamadı (${res.status}): ${text}`);
+  }
+
+  const data = await res.json();
+  return data.data;
+}
+
+async function getRun(runId: string): Promise<{ status: string; defaultDatasetId: string }> {
+  const token = getToken();
+  const res = await fetch(`${APIFY_BASE_URL}/actor-runs/${runId}?token=${token}`);
+
+  if (!res.ok) {
+    throw new Error(`Apify run durumu alınamadı (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.data;
+}
+
+async function waitForRun(runId: string): Promise<{ status: string; defaultDatasetId: string }> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < MAX_WAIT_MS) {
+    const run = await getRun(runId);
+
+    if (['SUCCEEDED', 'FAILED', 'TIMED-OUT', 'ABORTED'].includes(run.status)) {
+      return run;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+
+  throw new Error('Apify Actor zaman aşımına uğradı');
+}
+
+async function getDatasetItems(datasetId: string): Promise<ApifyPost[]> {
+  const token = getToken();
+  const res = await fetch(
+    `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${token}&format=json&clean=true`
+  );
+
+  if (!res.ok) {
+    throw new Error(`Apify dataset alınamadı (${res.status})`);
+  }
+
+  return res.json();
+}
+
+// ============================================
+// Ana fonksiyonlar
+// ============================================
+
+export async function runSearch(params: ApifySearchParams): Promise<ApifyRunResult> {
+  const limitPerSource = params.maxPosts ?? DEFAULT_MAX_POSTS;
+
+  // URL'ler doğrudan verilmişse onları kullan, yoksa keywords'den oluştur
+  const urls = params.urls && params.urls.length > 0
+    ? params.urls
+    : [buildSearchUrl(params)];
+
+  const input: Record<string, unknown> = {
+    urls,
+    deepScrape: params.deepScrape ?? true,
+    limitPerSource,
+    rawData: false,
+  };
+
+  if (params.scrapeUntil) {
+    input.scrapeUntil = params.scrapeUntil;
+  }
+
+  const run = await startActorRun(input);
+
+  const completedRun = await waitForRun(run.id);
+
+  if (completedRun.status !== 'SUCCEEDED') {
     return {
       runId: run.id,
-      datasetId: '',
+      datasetId: completedRun.defaultDatasetId || '',
       posts: [],
-      status: run.status as ApifyRunResult['status'],
+      status: completedRun.status as ApifyRunResult['status'],
     };
   }
 
-  const { items } = await client
-    .dataset(run.defaultDatasetId)
-    .listItems();
+  const posts = await getDatasetItems(completedRun.defaultDatasetId);
 
   return {
     runId: run.id,
-    datasetId: run.defaultDatasetId,
-    posts: items as unknown as ApifyPost[],
-    status: run.status as ApifyRunResult['status'],
+    datasetId: completedRun.defaultDatasetId,
+    posts,
+    status: 'SUCCEEDED',
   };
 }
 
-/**
- * Doğrudan şirket sayfası gönderilerini çeker.
- */
 export async function runCompanySearch(
   companySlug: string,
   maxPosts?: number
 ): Promise<ApifyRunResult> {
-  const client = getClient();
   const companyUrl = buildCompanyPostsUrl(companySlug);
 
-  const input = {
+  const run = await startActorRun({
     urls: [companyUrl],
-    maxPosts: maxPosts ?? DEFAULT_MAX_POSTS,
-  };
-
-  const run = await client.actor(ACTOR_ID).call(input, {
-    waitSecs: 300,
+    deepScrape: true,
+    limitPerSource: maxPosts ?? DEFAULT_MAX_POSTS,
+    rawData: false,
   });
 
-  if (!run.defaultDatasetId) {
+  const completedRun = await waitForRun(run.id);
+
+  if (completedRun.status !== 'SUCCEEDED') {
     return {
       runId: run.id,
-      datasetId: '',
+      datasetId: completedRun.defaultDatasetId || '',
       posts: [],
-      status: run.status as ApifyRunResult['status'],
+      status: completedRun.status as ApifyRunResult['status'],
     };
   }
 
-  const { items } = await client
-    .dataset(run.defaultDatasetId)
-    .listItems();
+  const posts = await getDatasetItems(completedRun.defaultDatasetId);
 
   return {
     runId: run.id,
-    datasetId: run.defaultDatasetId,
-    posts: items as unknown as ApifyPost[],
-    status: run.status as ApifyRunResult['status'],
+    datasetId: completedRun.defaultDatasetId,
+    posts,
+    status: 'SUCCEEDED',
   };
 }
 
-/**
- * Mevcut bir Apify dataset'inden sonuçları çeker.
- */
 export async function fetchDatasetResults(datasetId: string): Promise<ApifyPost[]> {
-  const client = getClient();
-  const { items } = await client.dataset(datasetId).listItems();
-  return items as unknown as ApifyPost[];
+  return getDatasetItems(datasetId);
 }
 
-/**
- * Apify Actor çalıştırma durumunu kontrol eder.
- */
 export async function getRunStatus(runId: string): Promise<string> {
-  const client = getClient();
-  const run = await client.run(runId).get();
-  return run?.status ?? 'UNKNOWN';
+  const run = await getRun(runId);
+  return run.status;
 }
 
 // ============================================
 // Yeniden deneme ile çalıştırma
 // ============================================
 
-/**
- * Üstel geri çekilme ile yeniden deneme destekli arama.
- */
 export async function runSearchWithRetry(
   params: ApifySearchParams,
   maxRetries: number = MAX_RETRY_COUNT
@@ -175,7 +219,6 @@ export async function runSearchWithRetry(
         throw new Error(`Apify Actor ${result.status}: run ${result.runId}`);
       }
 
-      // TIMED-OUT durumunda yeniden dene
       throw new Error(`Apify Actor TIMED-OUT: run ${result.runId}`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));

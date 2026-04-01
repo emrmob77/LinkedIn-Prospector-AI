@@ -20,6 +20,7 @@ interface SearchFormProps {
     keywords: string[];
     maxPosts: number;
     dateFilter?: string;
+    urls?: string[];
   }) => void;
   isSearching: boolean;
 }
@@ -29,6 +30,7 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
   const [inputValue, setInputValue] = useState("");
   const [maxPosts, setMaxPosts] = useState("50");
   const [dateFilter, setDateFilter] = useState("none");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
 
   const addKeyword = () => {
     const trimmed = inputValue.trim();
@@ -50,11 +52,19 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
   };
 
   const handleSearch = () => {
-    if (keywords.length === 0 || isSearching) return;
+    const hasKeywords = keywords.length > 0;
+    const hasUrl = linkedinUrl.trim().length > 0;
+    if ((!hasKeywords && !hasUrl) || isSearching) return;
+
+    const urls = hasUrl
+      ? linkedinUrl.split("\n").map((u) => u.trim()).filter(Boolean)
+      : undefined;
+
     onSearch({
       keywords,
       maxPosts: parseInt(maxPosts, 10),
       dateFilter: dateFilter !== "none" ? dateFilter : undefined,
+      urls,
     });
   };
 
@@ -104,6 +114,20 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
           )}
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="linkedin-url">LinkedIn URL (opsiyonel)</Label>
+          <Input
+            id="linkedin-url"
+            placeholder="Şirket, kullanıcı veya gönderi URL'si (her satıra bir URL)"
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+            disabled={isSearching}
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Şirket sayfası, kullanıcı profili veya tekil gönderi URL&apos;si girebilirsiniz. Keyword ile birlikte veya tek başına kullanılabilir.
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Maksimum Gönderi</Label>
@@ -144,7 +168,7 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
 
         <Button
           onClick={handleSearch}
-          disabled={keywords.length === 0 || isSearching}
+          disabled={(keywords.length === 0 && !linkedinUrl.trim()) || isSearching}
           className="w-full"
         >
           {isSearching ? (

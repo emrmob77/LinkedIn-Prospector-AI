@@ -35,25 +35,31 @@ export async function POST(request: NextRequest) {
 
     // Request body
     const body = await request.json();
-    const { keywords, maxPosts, dateFilter, geoId } = body as {
+    const { keywords, maxPosts, dateFilter, geoId, urls } = body as {
       keywords: string[];
       maxPosts?: number;
       dateFilter?: 'past-24h' | 'past-week' | 'past-month';
       geoId?: string;
+      urls?: string[];
     };
 
-    if (!keywords || keywords.length === 0) {
+    // En az keyword veya URL olmalı
+    const hasKeywords = keywords && keywords.length > 0;
+    const hasUrls = urls && urls.length > 0;
+
+    if (!hasKeywords && !hasUrls) {
       return NextResponse.json(
-        { error: 'En az bir anahtar kelime gerekli' },
+        { error: 'En az bir anahtar kelime veya LinkedIn URL gerekli' },
         { status: 400 }
       );
     }
 
     const searchParams: ApifySearchParams = {
-      keywords,
+      keywords: keywords || [],
       maxPosts: maxPosts ?? 50,
       dateFilter,
       geoId,
+      urls,
     };
 
     // search_run kaydı oluştur

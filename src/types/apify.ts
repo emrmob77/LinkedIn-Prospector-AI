@@ -118,6 +118,9 @@ export interface ApifySearchParams {
   maxPosts?: number;
   dateFilter?: 'past-24h' | 'past-week' | 'past-month';
   geoId?: string;
+  urls?: string[];
+  deepScrape?: boolean;
+  scrapeUntil?: string;
 }
 
 export interface ApifyRunResult {

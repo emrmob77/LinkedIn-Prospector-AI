@@ -34,6 +34,7 @@ export default function SearchPage() {
     keywords: string[];
     maxPosts: number;
     dateFilter?: string;
+    urls?: string[];
   }) => {
     setSearch((prev) => ({
       ...prev,
