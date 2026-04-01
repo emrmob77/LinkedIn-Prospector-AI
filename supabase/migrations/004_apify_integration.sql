@@ -9,11 +9,11 @@
 -- Yazar ek bilgileri
 ALTER TABLE posts ADD COLUMN author_profile_picture VARCHAR(1000);
 ALTER TABLE posts ADD COLUMN author_followers_count VARCHAR(50);
-ALTER TABLE posts ADD COLUMN author_type VARCHAR(20) DEFAULT 'Person'
+ALTER TABLE posts ADD COLUMN author_type VARCHAR(20) NOT NULL DEFAULT 'Person'
   CHECK (author_type IN ('Person', 'Company'));
 
 -- Gönderi görselleri (URL dizisi olarak)
-ALTER TABLE posts ADD COLUMN images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE posts ADD COLUMN images JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- LinkedIn benzersiz gönderi ID'si (deduplicate için)
 ALTER TABLE posts ADD COLUMN linkedin_urn VARCHAR(255);
@@ -56,7 +56,7 @@ ALTER TABLE search_runs ADD COLUMN geo_id VARCHAR(50);
 -- ============================================
 
 -- Lead kaynağı (gönderi yazarı mı, yorumcu mu, beğenen mi)
-ALTER TABLE leads ADD COLUMN source VARCHAR(20) DEFAULT 'post_author'
+ALTER TABLE leads ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'post_author'
   CHECK (source IN ('post_author', 'commenter', 'reactor'));
 
 -- Profil resmi
