@@ -68,22 +68,38 @@ export function mapApifyPosts(rawPosts: ApifyPost[], languageFilter?: 'tr' | 'en
 }
 
 /**
- * Basit Türkçe içerik tespiti — Türkçe'ye özgü karakterler ve yaygın kelimeler.
+ * Türkçe içerik tespiti — Türkçe'ye özgü karakterler ve yaygın kelimeler.
+ * Hem karakter hem kelime eşiği gerekir — tek başına Türkçe karakter yetmez.
  */
 function isTurkishContent(text: string): boolean {
-  // Türkçe'ye özgü karakterler
-  const turkishChars = /[çğıöşüÇĞİÖŞÜ]/;
-  if (turkishChars.test(text)) return true;
+  if (!text || text.length < 30) return false;
 
-  // Yaygın Türkçe kelimeler (lowercase ile kontrol)
+  // Türkçe'ye özgü karakter sayısı (en az 3 tane)
+  const turkishCharMatches = text.match(/[çğıöşüÇĞİÖŞÜ]/g);
+  const turkishCharCount = turkishCharMatches ? turkishCharMatches.length : 0;
+
+  // Yaygın Türkçe kelimeler
   const lower = text.toLowerCase();
   const turkishWords = [
-    'bir', 'için', 'olan', 'ile', 'olarak', 'değil', 'gibi',
-    'daha', 'çok', 'ise', 'ancak', 'şirket', 'firma', 'çalışan',
-    'müşteri', 'ürün', 'hizmet', 'proje', 'iş ', 'yeni',
+    'bir ', 'için ', 'olan ', 'ile ', 'olarak ', 'değil', 'gibi ',
+    'daha ', 'çok ', 'ancak', 'şirket', 'firma', 'çalışan',
+    'müşteri', 'ürün', 'hizmet', 'proje', 'olarak', 'oldu',
+    'yapı', 'konu', 'sonuç', 'devam', 'büyük', 'küçük',
+    'yılı', 'günü', 'aras', 'hakkı', 'veril', 'sağl',
+    'bugün', 'yarın', 'geçen', 'yeni ', 'eski ', 'kadar',
   ];
-  const matchCount = turkishWords.filter((w) => lower.includes(w)).length;
-  return matchCount >= 2;
+  const wordMatchCount = turkishWords.filter((w) => lower.includes(w)).length;
+
+  // Arapça/Farsça karakter kontrolü — bunları kesin çıkar
+  const arabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  if (arabicChars.test(text)) return false;
+
+  // Kiril karakter kontrolü — Bulgarca vb. çıkar
+  const cyrillicChars = /[\u0400-\u04FF]/;
+  if (cyrillicChars.test(text)) return false;
+
+  // En az 3 Türkçe karakter VEYA en az 3 Türkçe kelime eşleşmesi
+  return turkishCharCount >= 3 || wordMatchCount >= 3;
 }
 
 function isEnglishContent(text: string): boolean {
