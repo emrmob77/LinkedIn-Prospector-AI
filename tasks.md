@@ -2,7 +2,7 @@
 
 ## Genel Bakış
 
-Bu uygulama planı, LinkedIn Prospector AI özelliğini ayrı kodlama görevlerine ayırır. Sistem Next.js 14, React 18, TypeScript, Tailwind CSS, shadcn/ui, Supabase (PostgreSQL), Claude API, Playwright ve Redis ile BullMQ kullanılarak inşa edilmiştir.
+Bu uygulama planı, LinkedIn Prospector AI özelliğini ayrı kodlama görevlerine ayırır. Sistem Next.js 14, React 18, TypeScript, Tailwind CSS, shadcn/ui, Supabase (PostgreSQL), Claude API, Apify API (LinkedIn veri çekimi) ve Redis ile BullMQ kullanılarak inşa edilmiştir.
 
 Uygulama, her görevin önceki çalışma üzerine inşa edildiği, ilerlemeyi doğrulamak için kontrol noktalarının bulunduğu artımlı bir yaklaşımı takip eder. Tüm görevler izlenebilirlik için gereksinimler dokümanından belirli gereksinimlere referans verir.
 
@@ -82,69 +82,77 @@ Bu görev listesi MVP özelliklerini kapsar:
     - **Doğrular: Gereksinim 10.6**
 
 
-- [ ] 5. HTML Parser Service'i uygula
-  - [ ] 5.1 LinkedIn gönderi HTML'i için parser oluştur
-    - HTML'den yazar adı, unvan, şirket, profil URL'sini çıkaran fonksiyonlar yaz
-    - Gönderi içeriği ve etkileşim metriklerini çıkaran fonksiyonlar yaz
-    - Yayın zaman damgasını çıkaran fonksiyonlar yaz
-    - Eksik veya hatalı HTML elementleri için hata yönetimi uygula
-    - _Gereksinimler: 11.1, 11.2, 11.4_
-  
-  - [ ] 5.2 Doğrulama ve pretty-printing uygula
-    - Gerekli alanların mevcut olduğunu kontrol eden doğrulama fonksiyonu oluştur
-    - Ayrıştırılmış veriyi biçimlendiren pretty-print fonksiyonu uygula
-    - _Gereksinimler: 11.4, 11.5_
-  
-  - [ ]* 5.3 Parser gidiş-dönüş için property test yaz
-    - **Özellik 30: Parser Gidiş-Dönüş Özelliği**
-    - **Doğrular: Gereksinim 11.6**
-  
-  - [ ]* 5.4 Parser uç durumları için birim testler yaz
-    - Eksik opsiyonel alanlarla ayrıştırmayı test et
-    - Özel karakterler ve Türkçe karakterlerle ayrıştırmayı test et
-    - Hatalı HTML ile ayrıştırmayı test et
+- [ ] 5. Apify Mapper Service'i uygula (eski: HTML Parser)
+  - [ ] 5.1 Apify JSON → Post mapper fonksiyonu oluştur
+    - Apify `supreme_coder/linkedin-post` çıktısını `Post` tipine dönüştüren `mapApifyPost()` yaz
+    - Yazar bilgisi mapping: `authorName`, `author.occupation` → `authorTitle`, `attributes[].company` → `authorCompany`
+    - Etkileşim mapping: `numLikes`, `numComments`, `numShares`
+    - Tarih mapping: `postedAtISO` → `publishedAt`
+    - URL mapping: `url` → `linkedinPostUrl`, `authorProfileUrl` → `authorLinkedinUrl`
+    - Eksik veya hatalı alanlar için fallback ve hata yönetimi
+    - _Gereksinimler: 1.3, 11.1, 11.2_
+
+  - [ ] 5.2 Yorum ve beğeni verisinden lead adayı çıkarma
+    - `comments[]` verisinden yorum yapanların profil bilgilerini çıkaran fonksiyon yaz
+    - `reactions[]` verisinden beğenenlerin profil bilgilerini çıkaran fonksiyon yaz
+    - Her lead adayı için: ad, unvan (occupation), LinkedIn profil URL'si, profil resmi
+    - _Gereksinimler: 3.1, 3.4_
+
+  - [ ] 5.3 Doğrulama fonksiyonu uygula
+    - Gerekli alanların (authorName, content, url) mevcut olduğunu kontrol et
+    - Geçersiz URL, boş içerik gibi durumları filtrele
+    - _Gereksinimler: 11.4_
+
+  - [ ] 5.4 TypeScript tip tanımlarını güncelle
+    - `ApifyPost` tipi oluştur (Apify ham çıktısı için)
+    - `ApifyComment`, `ApifyReaction`, `ApifyAuthor` yardımcı tipleri oluştur
+    - `RawPost` tipini Apify çıktısına göre güncelle
+    - `ScraperService` interface'ini Apify API client olarak güncelle
+    - `ParserService` → `MapperService` olarak güncelle
+    - _Gereksinimler: 4.1, 9.1_
+
+  - [ ]* 5.5 Mapper birim testleri yaz
+    - Tam veri ile mapping testi
+    - Eksik opsiyonel alanlarla mapping testi
+    - Türkçe karakterler ve emoji içeren içerik testi
+    - Yorum/beğeni verisi olmayan gönderi testi
     - _Gereksinimler: 11.2, 11.3_
 
-- [ ] 6. Kontrol noktası - Tüm testlerin geçtiğinden emin ol
+- [ ] 6. Apify API Client Service'i uygula (eski: Playwright Scraper)
+  - [ ] 6.1 Apify client çekirdek işlevselliğini oluştur
+    - `apify-client` npm paketini kur ve yapılandır
+    - Anahtar kelime ve opsiyonel filtrelerle (tarih, geoId) LinkedIn arama URL'si oluşturan fonksiyon yaz
+    - Apify Actor'ü (`supreme_coder/linkedin-post`) programatik çalıştıran fonksiyon yaz
+    - Actor çalışmasını bekleyip sonuçları döndüren fonksiyon yaz
+    - Yapılandırılabilir maksimum gönderi limiti desteği
+    - _Gereksinimler: 1.1, 1.3, 1.7_
+
+  - [ ] 6.2 Hata yönetimi ve yeniden deneme mantığını uygula
+    - Apify API hataları (401, 429, 5xx) için hata yönetimi
+    - Üstel geri çekilme ile yeniden deneme (1s, 2s, 4s, 8s)
+    - Actor timeout durumunu yönet
+    - Boş sonuç döndüğünde kullanıcıyı bilgilendir
+    - _Gereksinimler: 1.5, 1.6_
+
+  - [ ] 6.3 Arama URL oluşturucu
+    - Anahtar kelimelerden LinkedIn arama URL'si oluştur
+    - Tarih filtresi desteği (son 24 saat, son hafta, son ay)
+    - Ülke/bölge filtresi desteği (geoId parametresi)
+    - Şirket sayfası URL desteği (doğrudan şirket gönderilerini çekme)
+    - _Gereksinimler: 1.1, 1.7_
+
+  - [ ]* 6.4 Apify client birim testleri yaz
+    - Arama URL oluşturma testleri (keyword, tarih, geo filtreler)
+    - API hata senaryoları testleri
+    - Boş ve kısmi sonuç testleri
+    - _Gereksinimler: 1.1, 1.5, 1.6_
+
+- [ ] 7. Kontrol noktası - Tüm testlerin geçtiğinden emin ol
+  - Apify mapper ve client servislerinin entegrasyon testi
   - Tüm testlerin geçtiğinden emin ol, sorular ortaya çıkarsa kullanıcıya sor.
 
 
-- [ ] 7. Playwright ile LinkedIn Scraper Service'i uygula
-  - [ ] 7.1 Scraper service çekirdek işlevselliğini oluştur
-    - Gizlilik ayarlarıyla Playwright tarayıcısını başlat
-    - Anahtar kelimelere göre LinkedIn araması uygula
-    - Yapılandırılabilir maksimum gönderi limiti ile sayfalandırma mantığını uygula
-    - Gönderi HTML'ini çıkar ve parser'a aktar
-    - İstekler arasında 3-5 saniye gecikmelerle hız sınırlaması uygula
-    - _Gereksinimler: 1.1, 1.3, 1.7_
-  
-  - [ ] 7.2 Hata yönetimi ve yeniden deneme mantığını uygula
-    - Hız sınırlamasını tespit et (HTTP 429, CAPTCHA)
-    - Yeniden denemeler için üstel geri çekilme uygula (1s, 2s, 4s, 8s, 16s)
-    - Kimlik doğrulama hatalarını yönet ve kullanıcıyı bilgilendir
-    - Ayrıştırma başarısız olduğunda ham HTML'yi kaydet
-    - _Gereksinimler: 1.5, 1.6, 11.3_
-  
-  - [ ]* 7.3 Anahtar kelime eşleştirme için property test yaz
-    - **Özellik 1: Tarama Anahtar Kelime Eşleştirme**
-    - **Doğrular: Gereksinim 1.1**
-  
-  - [ ]* 7.4 Gönderi veri tamlığı için property test yaz
-    - **Özellik 3: Gönderi Veri Tamlığı**
-    - **Doğrular: Gereksinim 1.3**
-  
-  - [ ]* 7.5 Sayfalandırma limiti için property test yaz
-    - **Özellik 6: Sayfalandırma Limit Uygulaması**
-    - **Doğrular: Gereksinim 1.7**
-  
-  - [ ]* 7.6 Scraper hata senaryoları için birim testler yaz
-    - Hız sınırlama tespiti ve geri çekilmeyi test et
-    - Kimlik doğrulama hatası yönetimini test et
-    - Parser hatası kurtarmasını test et
-    - _Gereksinimler: 1.5, 1.6_
-
-
-- [ ] 8. Tarama için BullMQ iş kuyruğunu uygula
+- [ ] 8. Tarama için BullMQ iş kuyruğunu uygula (Apify entegrasyonu ile)
   - [ ] 8.1 BullMQ kuyruğu ve worker'ları kur
     - Redis bağlantısı ile `scraping-queue` oluştur
     - Tarama işlerini işleyen worker uygula

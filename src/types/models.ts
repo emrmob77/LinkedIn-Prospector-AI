@@ -26,6 +26,16 @@ export interface Post {
   publishedAt: Date;
   scrapedAt: Date;
   rawHtml: string | null;
+
+  // Apify ek alanları
+  authorProfilePicture: string | null;
+  authorFollowersCount: string | null;
+  authorType: 'Person' | 'Company';
+  images: string[];
+  linkedinUrn: string | null;
+  rawJson: Record<string, unknown> | null;
+
+  // AI Sınıflandırma alanları
   isRelevant: boolean | null;
   relevanceConfidence: number | null;
   theme: string | null;
@@ -36,6 +46,8 @@ export interface Post {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type LeadSource = 'post_author' | 'commenter' | 'reactor';
 
 export interface Lead {
   id: string;
@@ -52,6 +64,8 @@ export interface Lead {
   firstPostId: string | null;
   postCount: number;
   isActive: boolean;
+  source: LeadSource;
+  profilePicture: string | null;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
@@ -95,6 +109,8 @@ export interface ActivityLog {
   createdAt: Date;
 }
 
+export type DateFilter = 'past-24h' | 'past-week' | 'past-month';
+
 export interface SearchRun {
   id: string;
   userId: string;
@@ -109,6 +125,14 @@ export interface SearchRun {
   durationSeconds: number | null;
   errorMessage: string | null;
   retryCount: number;
+
+  // Apify alanları
+  apifyRunId: string | null;
+  apifyDatasetId: string | null;
+  searchUrl: string | null;
+  dateFilter: DateFilter | null;
+  geoId: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
