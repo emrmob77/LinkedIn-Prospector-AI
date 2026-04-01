@@ -6,10 +6,13 @@ import { mapApifyPosts, extractLeadCandidates } from '@/services/apify-mapper';
 import type { ApifySearchParams } from '@/types/apify';
 
 export async function POST(request: NextRequest) {
+  let searchRunId: string | null = null;
+  let supabase: ReturnType<typeof createServerClient> | null = null;
+
   try {
     // Auth kontrolü
     const cookieStore = cookies();
-    const supabase = createServerClient(
+    supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -76,6 +79,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    searchRunId = searchRun.id;
+
     // Apify çalıştır
     const result = await runSearchWithRetry(searchParams);
 
@@ -137,8 +142,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Arama hatası:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Beklenmeyen hata';
+
+    // search_run oluşturulduysa status'u failed yap
+    if (searchRunId && supabase) {
+      await supabase
+        .from('search_runs')
+        .update({
+          status: 'failed',
+          error_message: errorMessage,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', searchRunId);
+    }
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Beklenmeyen hata' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
