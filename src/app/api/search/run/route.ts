@@ -90,8 +90,9 @@ export async function POST(request: NextRequest) {
     // Apify çalıştır
     const result = await runSearchWithRetry(searchParams);
 
-    // Sonuçları map et
-    const mappedPosts = mapApifyPosts(result.posts);
+    // Sonuçları map et — Türkiye filtresi varsa sadece Türkçe gönderileri al
+    const languageFilter = geoId === '102105699' ? 'tr' : 'all';
+    const mappedPosts = mapApifyPosts(result.posts, languageFilter as 'tr' | 'en' | 'all');
 
     // Lead adaylarını çıkar
     const allLeadCandidates = result.posts.flatMap(extractLeadCandidates);

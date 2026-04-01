@@ -53,11 +53,47 @@ export function mapApifyPost(raw: ApifyPost): MappedPost {
 
 /**
  * Birden fazla Apify gönderisini toplu dönüştürür.
+ * Opsiyonel dil filtresi ile sadece belirli dildeki gönderiler alınır.
  */
-export function mapApifyPosts(rawPosts: ApifyPost[]): MappedPost[] {
+export function mapApifyPosts(rawPosts: ApifyPost[], languageFilter?: 'tr' | 'en' | 'all'): MappedPost[] {
   return rawPosts
     .filter((raw) => validateApifyPost(raw).isValid)
+    .filter((raw) => {
+      if (!languageFilter || languageFilter === 'all') return true;
+      if (languageFilter === 'tr') return isTurkishContent(raw.text || '');
+      if (languageFilter === 'en') return isEnglishContent(raw.text || '');
+      return true;
+    })
     .map(mapApifyPost);
+}
+
+/**
+ * Basit Türkçe içerik tespiti — Türkçe'ye özgü karakterler ve yaygın kelimeler.
+ */
+function isTurkishContent(text: string): boolean {
+  // Türkçe'ye özgü karakterler
+  const turkishChars = /[çğıöşüÇĞİÖŞÜ]/;
+  if (turkishChars.test(text)) return true;
+
+  // Yaygın Türkçe kelimeler (lowercase ile kontrol)
+  const lower = text.toLowerCase();
+  const turkishWords = [
+    'bir', 'için', 'olan', 'ile', 'olarak', 'değil', 'gibi',
+    'daha', 'çok', 'ise', 'ancak', 'şirket', 'firma', 'çalışan',
+    'müşteri', 'ürün', 'hizmet', 'proje', 'iş ', 'yeni',
+  ];
+  const matchCount = turkishWords.filter((w) => lower.includes(w)).length;
+  return matchCount >= 2;
+}
+
+function isEnglishContent(text: string): boolean {
+  const lower = text.toLowerCase();
+  const englishWords = [
+    'the ', 'and ', 'for ', 'with', 'that', 'this', 'from',
+    'have', 'will', 'been', 'about', 'would', 'their',
+  ];
+  const matchCount = englishWords.filter((w) => lower.includes(w)).length;
+  return matchCount >= 2;
 }
 
 // ============================================
