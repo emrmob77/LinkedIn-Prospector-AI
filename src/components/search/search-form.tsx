@@ -21,6 +21,7 @@ interface SearchFormProps {
     maxPosts: number;
     dateFilter?: string;
     urls?: string[];
+    geoId?: string;
   }) => void;
   isSearching: boolean;
 }
@@ -31,6 +32,7 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
   const [maxPosts, setMaxPosts] = useState("50");
   const [dateFilter, setDateFilter] = useState("none");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [geoId, setGeoId] = useState("102105699"); // Varsayılan: Türkiye
 
   const addKeyword = () => {
     const trimmed = inputValue.trim();
@@ -65,6 +67,7 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
       maxPosts: parseInt(maxPosts, 10),
       dateFilter: dateFilter !== "none" ? dateFilter : undefined,
       urls,
+      geoId: geoId !== "none" ? geoId : undefined,
     });
   };
 
@@ -128,7 +131,27 @@ export function SearchForm({ onSearch, isSearching }: SearchFormProps) {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label>Ülke</Label>
+            <Select
+              value={geoId}
+              onValueChange={setGeoId}
+              disabled={isSearching}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="102105699">Türkiye</SelectItem>
+                <SelectItem value="101165590">Birleşik Krallık</SelectItem>
+                <SelectItem value="101174742">Almanya</SelectItem>
+                <SelectItem value="103644278">ABD</SelectItem>
+                <SelectItem value="105015875">Hollanda</SelectItem>
+                <SelectItem value="none">Tüm Dünya</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>Maksimum Gönderi</Label>
             <Select

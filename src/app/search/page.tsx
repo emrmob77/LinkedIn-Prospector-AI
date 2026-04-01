@@ -35,6 +35,7 @@ export default function SearchPage() {
     maxPosts: number;
     dateFilter?: string;
     urls?: string[];
+    geoId?: string;
   }) => {
     setSearch((prev) => ({
       ...prev,

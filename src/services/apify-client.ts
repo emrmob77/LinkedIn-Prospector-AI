@@ -24,22 +24,23 @@ function getToken(): string {
 // Arama URL oluşturucu
 // ============================================
 
+// Türkiye geoId'si
+const DEFAULT_GEO_ID = '102105699';
+
 export function buildSearchUrl(params: ApifySearchParams): string {
   const keywords = params.keywords.join(' ');
-  const url = new URL('https://www.linkedin.com/search/results/content/');
+  const geoId = params.geoId || DEFAULT_GEO_ID;
 
-  url.searchParams.set('keywords', keywords);
-  url.searchParams.set('origin', 'FACETED_SEARCH');
+  // LinkedIn URL'ini manuel oluştur — searchParams.set bazı değerleri yanlış encode ediyor
+  let url = `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(keywords)}&origin=FACETED_SEARCH`;
 
   if (params.dateFilter) {
-    url.searchParams.set('datePosted', `"${params.dateFilter}"`);
+    url += `&datePosted=%22${params.dateFilter}%22`;
   }
 
-  if (params.geoId) {
-    url.searchParams.set('geoUrn', `urn:li:geo:${params.geoId}`);
-  }
+  url += `&geoUrn=urn%3Ali%3Ageo%3A${geoId}`;
 
-  return url.toString();
+  return url;
 }
 
 export function buildCompanyPostsUrl(companySlug: string): string {
