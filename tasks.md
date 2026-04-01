@@ -30,7 +30,7 @@ Bu görev listesi MVP özelliklerini kapsar:
   - _Gereksinimler: 10.1, 10.2, 16.1_
 
 - [x] 2. Veritabanı şeması ve migration'ları oluştur
-  - [ ] 2.1 Tüm tablolar için Supabase migration oluştur
+  - [x] 2.1 Tüm tablolar için Supabase migration oluştur
     - Tüm alanlar ve indekslerle `posts` tablosu için SQL migration yaz
     - Tüm alanlar ve indekslerle `leads` tablosu için SQL migration yaz
     - Tüm alanlar ve indekslerle `messages` tablosu için SQL migration yaz
@@ -57,13 +57,13 @@ Bu görev listesi MVP özelliklerini kapsar:
   - _Gereksinimler: 4.1, 5.4, 9.1-9.5_
 
 - [x] 4. Supabase Auth ile kimlik doğrulama kur
-  - [ ] 4.1 Kimlik doğrulama sayfalarını oluştur
+  - [x] 4.1 Kimlik doğrulama sayfalarını oluştur
     - Email/şifre formu ile login sayfası uygula
     - Email/şifre formu ile signup sayfası uygula
     - Şifre sıfırlama işlevselliği ekle
     - _Gereksinimler: 10.1, 10.2_
   
-  - [ ] 4.2 Kimlik doğrulama middleware'ini uygula
+  - [x] 4.2 Kimlik doğrulama middleware'ini uygula
     - Korumalı route'larda kimlik doğrulamayı kontrol eden middleware oluştur
     - Oturum doğrulama ve yenileme mantığını uygula
     - Kimliği doğrulanmamış kullanıcılar için login'e yönlendirme ekle
