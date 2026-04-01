@@ -1,4 +1,5 @@
 import type { Post, Lead } from './models';
+import type { ApifyPost, ApifySearchParams, ApifyRunResult, LeadCandidate } from './apify';
 
 // ============================================
 // Servis arayüzleri
@@ -71,6 +72,27 @@ export interface ValidationResult {
 // Servis interface'leri
 // ============================================
 
+// ============================================
+// Apify tabanlı servisler
+// ============================================
+
+export interface ApifyScraperService {
+  runSearch(params: ApifySearchParams): Promise<ApifyRunResult>;
+  buildSearchUrl(params: ApifySearchParams): string;
+  getRunStatus(runId: string): Promise<string>;
+}
+
+export interface ApifyMapperService {
+  mapPost(apifyPost: ApifyPost): Omit<Post, 'id' | 'searchRunId' | 'createdAt' | 'updatedAt' | 'scrapedAt'>;
+  extractLeadCandidates(apifyPost: ApifyPost): LeadCandidate[];
+  validate(apifyPost: ApifyPost): ValidationResult;
+}
+
+// ============================================
+// Eski servisler (geriye uyumluluk)
+// ============================================
+
+/** @deprecated Apify entegrasyonu ile değiştirildi, ApifyScraperService kullanın */
 export interface ScraperService {
   scrapeLinkedInPosts(keywords: string[], maxPosts: number): Promise<RawPost[]>;
   handleRateLimit(retryCount: number): Promise<void>;
@@ -82,6 +104,7 @@ export interface AIClassificationService {
   generateMessage(lead: Lead, post: Post): Promise<MessageDraft>;
 }
 
+/** @deprecated Apify entegrasyonu ile değiştirildi, ApifyMapperService kullanın */
 export interface ParserService {
   parsePost(html: string): ParsedPost;
   validate(data: ParsedPost): ValidationResult;
