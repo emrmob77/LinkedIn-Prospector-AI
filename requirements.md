@@ -11,7 +11,7 @@ LinkedIn Prospector AI, satış ekipleri için LinkedIn lead üretim sürecini o
 - **Paylaşım**: Potansiyel lead içerebilecek LinkedIn yayını
 - **Pipeline**: 6 aşamalı satış süreci (İletişim Kurulacak → İletişim Kuruldu → Cevap Alındı → Görüşme → Teklif → Arşiv)
 - **AI_Motoru**: Sınıflandırma, skorlama ve mesaj üretimi için Claude API destekli bileşen
-- **Scraper**: LinkedIn veri çıkarımı için Playwright/Puppeteer tabanlı bileşen
+- **Chrome_Extension**: LinkedIn sayfalarından post verisi yakalayan tarayıcı eklentisi
 - **Tarama_Çalıştırması**: Belirli anahtar kelimelerle LinkedIn tarama sürecinin tek bir yürütülmesi
 - **Aktivite_Logu**: Tüm kullanıcı ve sistem eylemlerinin sistem tarafından oluşturulan kaydı
 - **İnsan_Onayı**: Mesaj göndermeden önce insan incelemesi gerektiren onay mekanizması
@@ -21,7 +21,7 @@ LinkedIn Prospector AI, satış ekipleri için LinkedIn lead üretim sürecini o
 - **Frontend**: Next.js + React 18 + Tailwind CSS + shadcn/ui arayüzü
 - **Backend**: Next.js API Routes sunucu tarafı mantığı
 - **Veritabanı**: Supabase PostgreSQL veri depolama
-- **Parser**: LinkedIn HTML'inden yapılandırılmış veri çıkaran bileşen
+- **DOM_Parser**: LinkedIn sayfa DOM'undan yapılandırılmış veri çıkaran bileşen (Extension içinde)
 - **Pretty_Printer**: Verileri görüntüleme veya dışa aktarma için biçimlendiren bileşen
 
 ## Gereksinimler
@@ -32,13 +32,13 @@ LinkedIn Prospector AI, satış ekipleri için LinkedIn lead üretim sürecini o
 
 #### Kabul Kriterleri
 
-1. Kullanıcı arama anahtar kelimeleri sağladığında, Scraper bu anahtar kelimeleri içeren LinkedIn paylaşımlarını alacaktır
-2. Bir arama başlatıldığında, Sistem zaman damgası ve parametrelerle bir Tarama_Çalıştırması kaydı oluşturacaktır
-3. Scraper paylaşım içeriğini, yazar bilgilerini, etkileşim metriklerini ve yayın tarihini çıkaracaktır
-4. Tarama tamamlandığında, Sistem ham paylaşım verilerini Veritabanında saklayacaktır
-5. LinkedIn hız sınırlaması tespit edilirse, Scraper duraklatacak ve üstel geri çekilme ile yeniden deneyecektir
-6. Sistem kimlik doğrulama hatalarını işleyecek ve kullanıcıyı bilgilendirecektir
-7. Birden fazla sonuç sayfası mevcut olduğunda, Scraper yapılandırılabilir bir limite kadar sonuçlar arasında sayfalama yapacaktır
+1. Kullanıcı LinkedIn'de arama yaptığında, Chrome_Extension sayfadaki paylaşımları otomatik algılayacak ve DOM'dan parse edecektir
+2. Kullanıcı Extension'dan "İçe Aktar" butonuna tıkladığında, Sistem zaman damgası ve parametrelerle bir Tarama_Çalıştırması kaydı oluşturacaktır
+3. Chrome_Extension paylaşım içeriğini, yazar bilgilerini, etkileşim metriklerini ve yayın tarihini çıkaracaktır
+4. İçe aktarma tamamlandığında, Sistem paylaşım verilerini Veritabanında saklayacaktır
+5. Chrome_Extension arama sonuçları, şirket sayfaları, kullanıcı profilleri ve ana sayfa feed sayfalarını destekleyecektir
+6. Sistem API hata durumlarını işleyecek ve kullanıcıyı Extension popup'ı üzerinden bilgilendirecektir
+7. Chrome_Extension sayfadaki tüm görünür postları yakalayacak, kullanıcı sayfayı kaydırdıkça yeni postları da algılayacaktır
 
 ### Gereksinim 2: AI Destekli Paylaşım Filtreleme
 
@@ -167,13 +167,13 @@ LinkedIn Prospector AI, satış ekipleri için LinkedIn lead üretim sürecini o
 
 #### Kabul Kriterleri
 
-1. Parser LinkedIn paylaşım HTML'inden yapılandırılmış veri çıkaracaktır
-2. Parser LinkedIn'in HTML yapısındaki varyasyonları işleyecektir
-3. LinkedIn'in HTML yapısı değiştiğinde, Parser ayrıştırma hatalarını kaydedecektir
-4. Parser çıkarılan verileri saklamadan önce doğrulayacaktır
-5. Pretty_Printer ayrıştırılan verileri UI'da görüntülenmek üzere biçimlendirecektir
-6. TÜM geçerli ayrıştırılmış veriler için, ayrıştırma sonra pretty-printing sonra ayrıştırma orijinal ayrıştırılmış veriye eşdeğer veri üretecektir (round-trip özelliği)
-7. Ayrıştırma başarısız olduğunda, Sistem ham HTML'i manuel inceleme için saklayacaktır
+1. DOM_Parser LinkedIn sayfasındaki post kartlarından yapılandırılmış veri çıkaracaktır
+2. DOM_Parser LinkedIn'in DOM yapısındaki varyasyonları işleyecektir (farklı sayfa tipleri)
+3. LinkedIn'in DOM yapısı değiştiğinde, DOM_Parser ayrıştırma hatalarını kaydedecektir
+4. DOM_Parser çıkarılan verileri API'ye göndermeden önce doğrulayacaktır
+5. Extension popup'ı bulunan postları kullanıcıya özet olarak gösterecektir
+6. DOM_Parser, arama sonuçları, şirket sayfaları, profil sayfaları ve feed sayfalarında tutarlı veri çıkaracaktır
+7. Ayrıştırma başarısız olduğunda, Extension kullanıcıyı bilgilendirecek ve ham veriyi hata raporuyla birlikte saklayacaktır
 
 ### Gereksinim 12: Arama Yapılandırması ve Yönetimi
 
