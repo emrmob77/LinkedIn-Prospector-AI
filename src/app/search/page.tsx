@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Puzzle,
   Bot,
-  Eye,
   Loader2,
   Inbox,
   ChevronDown,
