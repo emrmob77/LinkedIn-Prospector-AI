@@ -41,13 +41,17 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/signup') ||
     request.nextUrl.pathname.startsWith('/auth');
 
+  // extension-token sayfasi giris yapmis kullanici icin erisime acik olmali
+  const isExtensionTokenPage =
+    request.nextUrl.pathname.startsWith('/auth/extension-token');
+
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return forwardCookies(supabaseResponse, NextResponse.redirect(url));
   }
 
-  if (user && isAuthPage) {
+  if (user && isAuthPage && !isExtensionTokenPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return forwardCookies(supabaseResponse, NextResponse.redirect(url));

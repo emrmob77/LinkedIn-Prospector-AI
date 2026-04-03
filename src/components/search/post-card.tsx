@@ -46,6 +46,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onExtractLead }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const initials = post.authorName
     .split(" ")
@@ -55,29 +56,49 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
     .toUpperCase()
     .slice(0, 2);
 
-  const isLongContent = post.content.length > 100;
-  const displayContent =
-    expanded || !isLongContent
+  const hasContent = post.content && post.content.trim().length > 0;
+  const isLongContent = hasContent && post.content.length > 100;
+  const displayContent = !hasContent
+    ? ""
+    : expanded || !isLongContent
       ? post.content
       : post.content.slice(0, 100) + "...";
+
+  const postLink = post.linkedinPostUrl && post.linkedinPostUrl.trim()
+    ? post.linkedinPostUrl
+    : null;
+  const authorLink = post.authorProfileUrl && post.authorProfileUrl.trim()
+    ? post.authorProfileUrl
+    : null;
+  const externalLink = postLink || authorLink;
+
+  const timeDisplay = post.timeSincePosted && post.timeSincePosted.trim()
+    ? post.timeSincePosted
+    : post.publishedAt && post.publishedAt.trim()
+      ? new Date(post.publishedAt).toLocaleDateString("tr-TR", {
+          day: "numeric",
+          month: "short",
+        })
+      : null;
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg group">
       {/* Görsel — kompakt */}
-      {post.images.length > 0 && (
+      {post.images.length > 0 && !imageError && (
         <a
-          href={post.linkedinPostUrl}
+          href={externalLink || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          className="block relative w-full aspect-[3/2] overflow-hidden bg-muted"
+          className={`block w-full overflow-hidden bg-muted ${!externalLink ? "pointer-events-none" : ""}`}
         >
           <Image
             src={post.images[0]}
             alt="Gönderi görseli"
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            width={800}
+            height={800}
+            className="w-full h-auto group-hover:scale-105 transition-transform duration-300"
             unoptimized
+            onError={() => setImageError(true)}
           />
           {post.images.length > 1 && (
             <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
@@ -151,12 +172,10 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <span>{post.timeSincePosted}</span>
+              {timeDisplay && <span>{timeDisplay}</span>}
+              {timeDisplay && post.authorFollowersCount && <span>·</span>}
               {post.authorFollowersCount && (
-                <>
-                  <span>·</span>
-                  <span>{post.authorFollowersCount} takipçi</span>
-                </>
+                <span>{post.authorFollowersCount} takipçi</span>
               )}
             </div>
           </div>
@@ -173,9 +192,15 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
         )}
 
         {/* İçerik */}
-        <p className="text-[11px] leading-snug text-foreground/80 whitespace-pre-line">
-          {displayContent}
-        </p>
+        {hasContent ? (
+          <p className="text-[11px] leading-snug text-foreground/80 whitespace-pre-line">
+            {displayContent}
+          </p>
+        ) : (
+          <p className="text-[11px] leading-snug text-muted-foreground italic">
+            İçerik mevcut değil
+          </p>
+        )}
         {isLongContent && (
           <button
             onClick={() => setExpanded(!expanded)}
@@ -209,14 +234,16 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
               {post.engagementShares.toLocaleString("tr-TR")}
             </span>
           </div>
-          <a
-            href={post.linkedinPostUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          {externalLink && (
+            <a
+              href={externalLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
         </div>
 
         {/* Lead Çıkar butonu */}

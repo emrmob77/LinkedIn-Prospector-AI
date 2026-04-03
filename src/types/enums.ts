@@ -29,7 +29,8 @@ export type ActionType =
   | 'message_approved'
   | 'message_sent'
   | 'lead_merged'
-  | 'export_created';
+  | 'export_created'
+  | 'extension_import';
 
 export type MessageType = 'dm' | 'email';
 

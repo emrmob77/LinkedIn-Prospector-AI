@@ -1,0 +1,653 @@
+/* ============================================
+   LinkedIn Prospector AI - Popup Stilleri
+   ============================================ */
+
+/* Genel sifirlama */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  color: #1a1a2e;
+  background: #f8f9fb;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Popup kapsayici */
+.popup-container {
+  width: 380px;
+  min-height: 200px;
+  max-height: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ---- HEADER ---- */
+.header {
+  background: linear-gradient(135deg, #0077B5 0%, #004182 100%);
+  color: #fff;
+  padding: 14px 16px 12px;
+  flex-shrink: 0;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+}
+
+.header-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.header-subtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+/* Baglanti durumu noktasi */
+.connection-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: relative;
+  cursor: default;
+}
+
+.connection-dot-inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.connection-checking .connection-dot-inner {
+  background: #fbbf24;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.connection-online .connection-dot-inner {
+  background: #34d399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+}
+
+.connection-offline .connection-dot-inner {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---- SECTION ---- */
+.section {
+  padding: 12px 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ---- AUTH BOLUMU ---- */
+.auth-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.auth-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #eff6ff;
+  margin-bottom: 12px;
+}
+
+.auth-icon {
+  width: 24px;
+  height: 24px;
+  stroke: #0077B5;
+}
+
+.auth-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 6px;
+}
+
+.auth-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.auth-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.auth-input:focus {
+  border-color: #0077B5;
+  box-shadow: 0 0 0 3px rgba(0, 119, 181, 0.1);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+/* ---- BUTONLAR ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.btn-full {
+  width: 100%;
+  padding: 10px 16px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0077B5 0%, #005f94 100%);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #005f94 0%, #004a75 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 119, 181, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+}
+
+.btn-success:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-outline {
+  background: #fff;
+  color: #0077B5;
+  border: 1px solid #0077B5;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.btn-link:hover {
+  color: #f87171;
+}
+
+/* Tara butonu ozel stili */
+.btn-scan {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+/* Ice aktar butonu */
+.btn-import {
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+/* ---- SAYFA TIPI KARTI ---- */
+.page-info-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.page-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.page-info-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* ---- BADGE'LER ---- */
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.badge-search {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-company {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.badge-profile {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-feed {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-unsupported {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.badge-unknown {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.badge-count {
+  background: #0077B5;
+  color: #fff;
+  min-width: 24px;
+  text-align: center;
+  padding: 2px 8px;
+}
+
+/* ---- POST LISTESI ---- */
+.posts-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.posts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.posts-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.post-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Scrollbar stillendirmesi */
+.post-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.post-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.post-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.post-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Tek bir post itemi */
+.post-item {
+  padding: 8px 10px;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  background: #fafbfc;
+  transition: all 0.15s ease;
+  cursor: default;
+}
+
+.post-item:hover {
+  background: #f0f7ff;
+  border-color: #bfdbfe;
+}
+
+.post-author-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.post-author-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.post-author-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.post-author-title {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.post-content-preview {
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.post-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.post-stat {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.post-stat svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ---- BOS DURUM ---- */
+.empty-state {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.empty-icon {
+  width: 40px;
+  height: 40px;
+  stroke: #cbd5e1;
+  margin-bottom: 10px;
+}
+
+.empty-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.empty-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* ---- PROGRESS BAR ---- */
+.progress-container {
+  margin-top: 10px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0077B5, #00a0dc);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* ---- FOOTER ---- */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.footer-text {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.footer-link {
+  color: #94a3b8;
+  transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-link:hover {
+  color: #0077B5;
+}
+
+/* ---- TOAST BILDIRIM ---- */
+.toast {
+  position: absolute;
+  bottom: 44px;
+  left: 16px;
+  right: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  transform: translateY(10px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.toast.toast-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.toast-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.toast-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  line-height: 1.3;
+}
+
+/* ---- SPINNER ---- */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.spinner-dark {
+  border-color: rgba(0, 0, 0, 0.15);
+  border-top-color: #0077B5;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- YARDIMCI SINIFLAR ---- */
+.hidden {
+  display: none !important;
+}

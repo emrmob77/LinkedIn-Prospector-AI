@@ -2,6 +2,23 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase-middleware';
 
 export async function middleware(request: NextRequest) {
+  // Extension API routes: skip cookie-based session check.
+  // These endpoints handle their own Bearer token auth internally.
+  if (request.nextUrl.pathname.startsWith('/api/extension/')) {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      });
+    }
+    return NextResponse.next();
+  }
+
   // API route'ları için auth kontrolü farklı: HTML redirect yerine 401 JSON
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const response = await updateSession(request);

@@ -82,40 +82,42 @@ Bu görev listesi MVP özelliklerini kapsar:
     - **Doğrular: Gereksinim 10.6**
 
 
-- [ ] 5. Chrome Extension temel yapısını oluştur
-  - [ ] 5.1 Extension proje yapısını kur
+- [x] 5. Chrome Extension temel yapısını oluştur
+  - [x] 5.1 Extension proje yapısını kur
     - `extension/` dizininde Manifest V3 yapısını oluştur
-    - TypeScript + build yapılandırması (webpack/vite)
-    - `manifest.json`: permissions (activeTab, storage), host_permissions (linkedin.com)
+    - `manifest.json`: permissions (activeTab, storage, tabs), host_permissions (linkedin.com, localhost, vercel)
     - Content script, popup ve background service worker dosyalarını oluştur
+    - Token bridge content script (web app'ten extension'a otomatik token aktarımı)
     - _Gereksinimler: 1.1, 11.1_
 
-  - [ ] 5.2 LinkedIn DOM Parser'ı uygula (Content Script)
-    - LinkedIn sayfasındaki post kartlarını DOM'dan parse eden fonksiyon yaz
-    - Her post için çıkar: authorName, authorTitle, authorCompany, authorLinkedinUrl, authorProfilePicture, authorType, content, linkedinPostUrl, engagementLikes/Comments/Shares, publishedAt, images
-    - Sayfa tipi algılama: arama (`/search/results/content/*`), şirket (`/company/*/posts/`), profil (`/in/*/recent-activity/`), feed (`/feed/`)
-    - Defensive parsing: DOM değişse bile hata vermeden çalış
+  - [x] 5.2 LinkedIn DOM Parser'ı uygula (Content Script)
+    - LinkedIn SDUI (yeni) ve eski DOM yapısı için dual parser
+    - Post container: `role="listitem"` (SDUI) + `feed-shared-update-v2` (eski) fallback
+    - Post içerik: `data-testid="expandable-text-box"` (SDUI) + `.update-components-text` (eski)
+    - Yazar bilgileri: author link + profil resmi alt text'inden çıkarma
+    - Post URL: shareId, pulse/article linkleri, data-urn, author profil fallback
+    - Görseller: alt text + URL pattern bazlı çıkarma (feedshare-shrink, article-cover)
+    - Engagement: aria-label + span text bazlı (Türkçe/İngilizce)
+    - Sayfa tipi: `/search/results/`, `/company/`, `/in/`, `/feed/`
     - _Gereksinimler: 1.1, 1.3, 11.1, 11.2_
 
-  - [ ] 5.3 Extension Popup UI'ı oluştur
-    - Bulunan post sayısını göster
-    - "İçe Aktar" butonu
-    - Import durumu (loading, başarılı, hata)
-    - Supabase auth bağlantısı (login durumu)
-    - Sayfa tipi göstergesi (arama/şirket/profil/feed)
+  - [x] 5.3 Extension Popup UI'ı oluştur
+    - Post sayısı, yazar adı, içerik snippet, etkileşim sayıları
+    - "Sayfayı Tara" ve "Tümünü İçe Aktar" butonları
+    - Auth token yönetimi (manuel + web app'ten otomatik)
+    - Bağlantı durumu göstergesi, sayfa tipi badge
+    - Toast bildirimler, progress bar, son tarama zamanı
     - _Gereksinimler: 1.1, 15.3, 15.4_
 
-  - [ ] 5.4 Background Service Worker'ı uygula
-    - Content script ile popup arasında mesaj köprüsü
-    - API'ye veri gönderme (`POST /api/extension/import`)
-    - Supabase auth token yönetimi (storage'da saklama)
-    - Hata yönetimi ve kullanıcı bildirimleri
+  - [x] 5.4 Background Service Worker'ı uygula
+    - SCAN_POSTS, IMPORT_POSTS, CHECK_CONNECTION, GET/SET_AUTH_TOKEN mesaj handler'ları
+    - API iletişimi: Bearer token auth, retry logic, timeout
+    - Tab badge yönetimi (LinkedIn sayfalarında sayfa tipi göstergesi)
     - _Gereksinimler: 1.2, 1.6, 10.1_
 
-  - [ ] 5.5 TypeScript tip tanımlarını güncelle
-    - `ExtensionPostData` tipi oluştur (Extension'ın gönderdiği veri yapısı)
-    - `ExtensionImportRequest` ve `ExtensionImportResponse` tipleri
-    - `PageType` enum ('search' | 'company_page' | 'profile' | 'feed')
+  - [x] 5.5 TypeScript tip tanımlarını güncelle
+    - `ExtensionPostData`, `ExtensionImportRequest`, `ImportResult` tipleri
+    - `ActionType` enum'una `extension_import` eklendi
     - _Gereksinimler: 4.1, 9.1_
 
   - [ ]* 5.6 Extension birim testleri yaz
@@ -124,39 +126,42 @@ Bu görev listesi MVP özelliklerini kapsar:
     - Veri doğrulama testleri
     - _Gereksinimler: 11.2, 11.3_
 
-- [ ] 6. Extension Import API endpoint'ini uygula
-  - [ ] 6.1 POST /api/extension/import endpoint'ini oluştur
-    - Supabase auth kontrolü (extension'dan gelen token doğrulama)
-    - Request body doğrulama (post dizisi, source tipi)
-    - `search_runs` kaydı oluştur (source: 'chrome_extension', sayfa URL'si)
-    - Post verilerini `posts` tablosuna kaydet (upsert — linkedin_post_url unique)
-    - Mevcut `extractLeadCandidates()` mantığını kullanarak lead adaylarını çıkar
+- [x] 6. Extension Import API endpoint'ini uygula
+  - [x] 6.1 POST /api/extension/import endpoint'ini oluştur
+    - Bearer token + cookie-based dual auth desteği
+    - CORS header'ları (extension cross-origin istekleri için)
+    - Request body doğrulama (posts array, pageUrl, batch limit 200)
+    - `search_runs` kaydı oluştur (source: 'chrome_extension')
+    - Post verilerini `posts` tablosuna kaydet
     - Sonuç döndür: postsImported, postsDuplicate, leadCandidatesCount
     - _Gereksinimler: 1.2, 1.4, 3.1, 3.4_
 
-  - [ ] 6.2 Extension veri → Post model mapper fonksiyonu oluştur
-    - `ExtensionPostData` → `Post` dönüşümü
-    - Eksik veya hatalı alanlar için fallback ve hata yönetimi
-    - Tarih parsing (LinkedIn'in göreceli tarih formatı: "3 gün", "2 hafta" vb.)
-    - URL doğrulama ve normalizasyonu
+  - [x] 6.2 Extension veri → Post model mapper fonksiyonu oluştur
+    - `ExtensionPostData` → DB row dönüşümü
+    - Boş linkedinPostUrl için unique placeholder üretimi
+    - Boş publishedAt için fallback tarih
     - _Gereksinimler: 11.1, 11.2, 11.4_
 
-  - [ ] 6.3 Veritabanı migration'ı (gerekirse)
-    - `search_runs` tablosuna `source` alanı ekle ('apify' | 'chrome_extension' | 'manual')
-    - `search_runs` tablosuna `source_url` alanı ekle (LinkedIn sayfa URL'si)
+  - [x] 6.3 Veritabanı migration'ı
+    - `search_runs.source` ('apify' | 'chrome_extension')
+    - `search_runs.page_url` (LinkedIn sayfa URL'si)
+    - `search_runs.keywords` nullable yapıldı
+    - `activity_logs.action_type` → 'extension_import' eklendi
     - _Gereksinimler: 9.5_
 
-  - [ ]* 6.4 Import API birim testleri yaz
-    - Başarılı import testi
-    - Duplicate post testi (upsert davranışı)
-    - Auth kontrolü testi
-    - Geçersiz veri testi
+  - [x] 6.4 Duplicate kontrolü (URL + içerik bazlı)
+    - Gerçek post URL'leri (feed/update, pulse) ile URL bazlı kontrol
+    - Aynı yazar + aynı içerik başlangıcı ile içerik bazlı kontrol
+    - Farklı sayfalardan aynı gönderi import edildiğinde duplicate algılama
+    - _Gereksinimler: 1.2, 1.4, 13.1_
+
+  - [ ]* 6.5 Import API birim testleri yaz
     - _Gereksinimler: 1.2, 1.4, 10.1_
 
-- [ ] 7. Kontrol noktası - Extension ve Import API entegrasyon testi
-  - Extension'dan API'ye veri gönderim akışını test et
-  - Post kaydetme ve lead çıkarma akışını doğrula
-  - Tüm testlerin geçtiğinden emin ol, sorular ortaya çıkarsa kullanıcıya sor.
+- [x] 7. Kontrol noktası - Extension ve Import API entegrasyon testi
+  - Extension'dan API'ye veri gönderim akışı test edildi (arama + şirket sayfası)
+  - Post kaydetme ve duplicate kontrolü doğrulandı
+  - QA incelemesi yapıldı, kritik hatalar düzeltildi
 
 
 - [ ] 8. AI işleme için BullMQ iş kuyruğunu uygula
@@ -517,27 +522,26 @@ Bu görev listesi MVP özelliklerini kapsar:
     - _Requirements: 8.1-8.5_
 
 
-- [ ] 21. Frontend oluştur: LinkedIn Arama sayfası
-  - [ ] 21.1 Create search form and result components
-    - Create SearchForm component with keyword input and saved searches dropdown
-    - Create PostList component with filtering toggle for irrelevant posts
-    - Create PostCard component displaying post content, author, engagement, and AI classification badge
-    - Add "Extract Lead" button for relevant posts
+- [x] 21. Frontend oluştur: LinkedIn Arama sayfası
+  - [x] 21.1 Search sayfası bileşenlerini oluştur
+    - SearchForm: Chrome Extension rehber banner'ı (4 adımlı nasıl çalışır)
+    - SearchResults: Grid/List görünüm modları (2/3/4 kolon + liste), ilgili/ilgisiz filtre
+    - PostCard: Yazar bilgileri, içerik, görseller (LinkedIn boyutunda), etkileşim, AI badge'leri
+    - Import history: Son import'lar buton listesi, aktif import highlight
     - _Requirements: 1.1, 2.5, 2.6_
   
-  - [ ] 21.2 Integrate search page with API
-    - Implement POST /api/search/run on form submit
-    - Poll search run status and display progress
-    - Fetch and display posts from GET /api/search/runs/:id
-    - Implement "Extract Lead" action
-    - Show classification badges (relevant/irrelevant, confidence, theme)
-    - _Requirements: 1.2, 2.1, 2.2, 2.3, 2.4_
+  - [x] 21.2 Search sayfasını API ile entegre et
+    - GET /api/search/history — import geçmişi
+    - GET /api/search/:runId/posts — belirli import'un postları
+    - Sayfa yüklendiğinde son import'un postlarını otomatik yükle
+    - PostCardData formatına dönüştürme (snake_case → camelCase)
+    - _Requirements: 1.2, 2.5, 2.6_
   
-  - [ ]* 21.3 Write unit tests for search page components
-    - Test SearchForm submission
-    - Test PostCard rendering with classification
-    - Test filtering toggle
-    - _Requirements: 1.1, 2.5, 2.6_
+  - [ ] 21.3 Eksik özellikler (AI entegrasyonu sonrası)
+    - "Lead Olarak Kaydet" butonu işlevselliği (lead extraction API gerekli)
+    - AI sınıflandırma badge'leri (AI service gerekli)
+    - Skor bazlı sıralama
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1_
 
 
 - [ ] 22. Frontend oluştur: İletişim Hattı sayfası

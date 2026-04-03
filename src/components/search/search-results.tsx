@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -10,15 +11,192 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PostCard, PostCardData } from "./post-card";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Sparkles,
+  LayoutGrid,
+  Columns3,
+  Columns4,
+  List,
+  ThumbsUp,
+  MessageCircle,
+  Share2,
+  ExternalLink,
+  Building2,
+} from "lucide-react";
+
+type ViewMode = "2" | "3" | "4" | "list";
 
 interface SearchResultsProps {
   posts: PostCardData[];
 }
 
+const viewModeOptions: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
+  { value: "2", label: "Buyuk", icon: <LayoutGrid className="h-4 w-4" /> },
+  { value: "3", label: "Orta", icon: <Columns3 className="h-4 w-4" /> },
+  { value: "4", label: "Kucuk", icon: <Columns4 className="h-4 w-4" /> },
+  { value: "list", label: "Liste", icon: <List className="h-4 w-4" /> },
+];
+
+const gridClassMap: Record<ViewMode, string> = {
+  "2": "grid-cols-1 sm:grid-cols-2",
+  "3": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  "4": "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
+  list: "grid-cols-1",
+};
+
+function ListItem({ post }: { post: PostCardData }) {
+  const initials = post.authorName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const snippet =
+    post.content && post.content.trim().length > 0
+      ? post.content.length > 120
+        ? post.content.slice(0, 120) + "..."
+        : post.content
+      : "Icerik mevcut degil";
+
+  const postLink =
+    post.linkedinPostUrl && post.linkedinPostUrl.trim()
+      ? post.linkedinPostUrl
+      : null;
+  const authorLink =
+    post.authorProfileUrl && post.authorProfileUrl.trim()
+      ? post.authorProfileUrl
+      : null;
+  const externalLink = postLink || authorLink;
+
+  const timeDisplay =
+    post.timeSincePosted && post.timeSincePosted.trim()
+      ? post.timeSincePosted
+      : post.publishedAt && post.publishedAt.trim()
+        ? new Date(post.publishedAt).toLocaleDateString("tr-TR", {
+            day: "numeric",
+            month: "short",
+          })
+        : null;
+
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <div className="flex items-center gap-3 p-3">
+        {/* Sol: Gorsel */}
+        <div className="shrink-0">
+          {post.images.length > 0 && !imgError ? (
+            <div className="w-20 h-20 rounded-md overflow-hidden bg-muted relative">
+              <Image
+                src={post.images[0]}
+                alt="Gonderi gorseli"
+                width={80}
+                height={80}
+                className="w-full h-full object-cover"
+                unoptimized
+                onError={() => setImgError(true)}
+              />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center">
+              <Avatar className="h-10 w-10">
+                {post.authorProfilePicture && (
+                  <AvatarImage
+                    src={post.authorProfilePicture}
+                    alt={post.authorName}
+                  />
+                )}
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          )}
+        </div>
+
+        {/* Orta: Bilgi */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <a
+              href={post.authorProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold truncate hover:text-primary transition-colors"
+            >
+              {post.authorName}
+            </a>
+            {post.authorType === "Company" && (
+              <Building2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            )}
+            {post.isRelevant !== null && post.isRelevant !== undefined && (
+              <Badge
+                className={`text-[10px] px-1.5 py-0 ml-1 ${
+                  post.isRelevant
+                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+                    : "bg-gray-200 text-gray-600 border-0"
+                }`}
+              >
+                {post.isRelevant ? "Ilgili" : "Ilgisiz"}
+              </Badge>
+            )}
+            {post.theme && (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 ml-1 border-blue-200 text-blue-700 bg-blue-50"
+              >
+                {post.theme}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">{snippet}</p>
+          <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-0.5">
+              <ThumbsUp className="h-3 w-3" />
+              {post.engagementLikes.toLocaleString("tr-TR")}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <MessageCircle className="h-3 w-3" />
+              {post.engagementComments.toLocaleString("tr-TR")}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Share2 className="h-3 w-3" />
+              {post.engagementShares.toLocaleString("tr-TR")}
+            </span>
+          </div>
+        </div>
+
+        {/* Sag: Tarih + Link */}
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          {timeDisplay && (
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+              {timeDisplay}
+            </span>
+          )}
+          {externalLink && (
+            <a
+              href={externalLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function SearchResults({ posts }: SearchResultsProps) {
   const [showIrrelevant, setShowIrrelevant] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("3");
 
   const filteredPosts = showIrrelevant
     ? posts
@@ -34,14 +212,30 @@ export function SearchResults({ posts }: SearchResultsProps) {
           <div>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-amber-500" />
-              Tarama Sonuçları
+              Tarama Sonuclari
             </CardTitle>
             <CardDescription className="text-xs mt-1">
-              {totalCount} gönderi tarandı
+              {totalCount} gonderi tarandi
               {relevantCount > 0 && `, ${relevantCount} ilgili bulundu`}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <div className="flex items-center border rounded-md overflow-hidden">
+              {viewModeOptions.map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={viewMode === opt.value ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 w-7 p-0 rounded-none"
+                  onClick={() => setViewMode(opt.value)}
+                  title={opt.label}
+                >
+                  {opt.icon}
+                </Button>
+              ))}
+            </div>
+
             {relevantCount > 0 && (
               <Badge variant="default" className="gap-1">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -51,7 +245,7 @@ export function SearchResults({ posts }: SearchResultsProps) {
             {totalCount - relevantCount > 0 && (
               <Badge variant="secondary" className="gap-1">
                 <div className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                {totalCount - relevantCount} diğer
+                {totalCount - relevantCount} diger
               </Badge>
             )}
             <Button
@@ -68,7 +262,7 @@ export function SearchResults({ posts }: SearchResultsProps) {
               ) : (
                 <>
                   <Eye className="mr-1 h-3 w-3" />
-                  Tümü
+                  Tumu
                 </>
               )}
             </Button>
@@ -76,11 +270,21 @@ export function SearchResults({ posts }: SearchResultsProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="grid grid-cols-4 gap-2 items-start">
-          {filteredPosts.map((post) => (
-            <PostCard key={post.id} post={post} onExtractLead={() => {}} />
-          ))}
-        </div>
+        {viewMode === "list" ? (
+          <div className="flex flex-col gap-2">
+            {filteredPosts.map((post) => (
+              <ListItem key={post.id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <div
+            className={`grid ${gridClassMap[viewMode]} gap-2 items-start`}
+          >
+            {filteredPosts.map((post) => (
+              <PostCard key={post.id} post={post} onExtractLead={() => {}} />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

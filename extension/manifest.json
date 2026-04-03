@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Prospector AI",
+  "version": "0.1.0",
+  "description": "LinkedIn postlarından lead toplama ve analiz aracı",
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "http://localhost:3000/*",
+    "https://linked-in-prospector-ai.vercel.app/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.linkedin.com/*"],
+      "js": [
+        "content/parser.js",
+        "content/content.js"
+      ],
+      "css": [],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:3000/auth/extension-token*",
+        "https://linked-in-prospector-ai.vercel.app/auth/extension-token*"
+      ],
+      "js": ["content/token-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "LinkedIn Prospector AI"
+  }
+}
