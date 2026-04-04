@@ -114,7 +114,12 @@ export function Sidebar() {
         </p>
         <Link
           href="/settings"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+            pathname === "/settings"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
         >
           <Settings className="h-4 w-4" />
           Yapılandırma

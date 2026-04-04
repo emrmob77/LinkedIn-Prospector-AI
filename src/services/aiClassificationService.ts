@@ -1,4 +1,5 @@
-import claude from '@/lib/claude';
+import type { AIClient } from '@/lib/ai-client';
+import { DEFAULT_MODELS } from '@/lib/ai-client';
 import type { Post, Lead } from '@/types/models';
 import type { AIClassification, LeadScore, MessageDraft } from '@/types/services';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -8,14 +9,43 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // ============================================
 
 const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-4-20250514';
-const AI_TEMPERATURE = parseFloat(process.env.AI_TEMPERATURE || '0.3');
+const DEFAULT_TEMPERATURE = 0.3;
 const BATCH_DELAY_MS = 500;
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 2000;
 
-const SYSTEM_PROMPT_CLASSIFICATION = `Sen bir kurumsal hediye ve promosyon sektörü analistisin. LinkedIn gönderilerini analiz ederek potansiyel müşteri adaylarını belirle.
+// ============================================
+// Firma bağlamı (Yapılandırma sayfasından gelir)
+// ============================================
 
-Görevin: Verilen LinkedIn gönderisini kurumsal hediye, promosyon ürünleri ve ilgili sektörler açısından değerlendir.
+export interface BusinessContext {
+  companySector: string;
+  productDescription: string;
+  targetCustomer: string;
+  companyName: string;
+  companyWebsite?: string;
+  aiTemperature?: number;
+}
+
+const DEFAULT_CONTEXT: BusinessContext = {
+  companyName: 'Kurumsal Hediye Firmasi',
+  companySector: 'Kurumsal hediye ve promosyon',
+  productDescription: 'Kurumsal hediye, promosyon ürünleri, çalışan motivasyon paketleri, etkinlik organizasyonu malzemeleri',
+  targetCustomer: 'B2B firmalar, kurumsal etkinlik organizatörleri, İK departmanları, pazarlama ekipleri',
+};
+
+// ============================================
+// Dinamik prompt oluşturucular
+// ============================================
+
+function buildClassificationSystemPrompt(ctx: BusinessContext): string {
+  return `Sen bir ${ctx.companySector} sektörü analistisin. LinkedIn gönderilerini analiz ederek potansiyel müşteri adaylarını belirle.
+
+Görevin: Verilen LinkedIn gönderisini ${ctx.companySector} ve ilgili sektörler açısından değerlendir.
+
+Firma hakkında bilgi:
+- Ürünler/Hizmetler: ${ctx.productDescription}
+- Hedef müşteri profili: ${ctx.targetCustomer}
 
 Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
 {
@@ -27,22 +57,16 @@ Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin eklem
   "reasoning": string
 }
 
-Değerlendirme kriterleri:
-- Kurumsal hediye (çikolata, ajanda, kalem, teknolojik ürünler vb.)
-- Promosyon ürünleri (baskılı ürünler, tanıtım malzemeleri)
-- Etkinlik organizasyonu (kurumsal etkinlikler, lansman, kongre)
-- Çalışan motivasyonu (hoşgeldin paketi, yılbaşı hediyesi, ödül)
-- B2B hediye alımı sinyalleri
-- Rakip firma aktiviteleri (kurumsal hediye firmaları)
-
-isRelevant: Gönderi yukarıdaki konulardan biriyle ilgiliyse true
+isRelevant: Gönderi firmanın sektörü veya hedef müşteri profili ile ilgiliyse true
 confidence: Ne kadar emin olduğun (0-100)
-theme: Ana tema (örn: "kurumsal hediye", "promosyon ürünü", "etkinlik organizasyonu", "çalışan motivasyonu", "ilgisiz")
-giftType: Spesifik hediye türü varsa (örn: "çikolata kutusu", "ajanda seti"), yoksa null
+theme: Ana tema (sektöre uygun kısa açıklama)
+giftType: Spesifik ürün/hizmet türü varsa, yoksa null
 competitor: Rakip firma adı görüyorsan, yoksa null
 reasoning: 1-2 cümlelik Türkçe açıklama`;
+}
 
-const SYSTEM_PROMPT_SCORING = `Sen bir B2B satış analistisin. Verilen lead (potansiyel müşteri) bilgilerini değerlendir ve kalite puanı hesapla.
+function buildScoringSystemPrompt(ctx: BusinessContext): string {
+  return `Sen bir B2B satış analistisin. Verilen lead (potansiyel müşteri) bilgilerini ${ctx.companySector} sektörü açısından değerlendir ve kalite puanı hesapla.
 
 Yanıtını SADECE aşağıdaki JSON formatında ver:
 {
@@ -59,11 +83,16 @@ Yanıtını SADECE aşağıdaki JSON formatında ver:
 Puanlama kriterleri:
 - companySize (0-30): Büyük/orta ölçekli firmalar daha yüksek puan
 - projectClarity (0-25): Net bir proje/ihtiyaç belirtmişse yüksek puan
-- industryFit (0-20): Kurumsal hediye sektörüne uygunluk
+- industryFit (0-20): ${ctx.companySector} sektörüne uygunluk
 - timing (0-15): Acil/yakın zamanlı ihtiyaç sinyalleri
 - competitorStatus (0-10): Rakip kullanmıyorsa veya memnun değilse yüksek puan`;
+}
 
-const SYSTEM_PROMPT_MESSAGE = `Sen bir kurumsal hediye firmasının satış uzmanısın. Kişiselleştirilmiş, profesyonel ve samimi iletişim mesajları oluştur.
+function buildMessageSystemPrompt(ctx: BusinessContext): string {
+  return `Sen ${ctx.companyName} firmasının satış uzmanısın. ${ctx.companySector} sektöründe kişiselleştirilmiş, profesyonel ve samimi iletişim mesajları oluştur.
+
+Firma bilgisi: ${ctx.productDescription}
+${ctx.companyWebsite ? `Web: ${ctx.companyWebsite}` : ''}
 
 Yanıtını SADECE aşağıdaki JSON formatında ver:
 {
@@ -79,6 +108,7 @@ Kurallar:
 - Kişinin adını, şirketini ve paylaşımını referans al
 - Satış baskısı yapma, değer önerisi sun
 - Türkçe yaz`;
+}
 
 // ============================================
 // Yardımcı fonksiyonlar
@@ -87,25 +117,23 @@ Kurallar:
 /**
  * Claude API'ye istek gonderir. Rate limit (429) durumunda retry yapar.
  */
-async function callClaude(
+async function callAI(
+  client: AIClient,
   systemPrompt: string,
   userPrompt: string,
+  temperature = DEFAULT_TEMPERATURE,
   retryCount = 0
 ): Promise<string> {
   try {
-    const response = await claude.messages.create({
-      model: AI_MODEL,
-      max_tokens: 1024,
-      temperature: AI_TEMPERATURE,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+    const defaultModel = DEFAULT_MODELS[client.provider] || AI_MODEL;
+    const result = await client.chat({
+      model: client.model || defaultModel,
+      maxTokens: 1024,
+      temperature,
+      systemPrompt,
+      userMessage: userPrompt,
     });
-
-    const textBlock = response.content.find((block) => block.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      throw new Error('Claude yanıtında text block bulunamadı');
-    }
-    return textBlock.text;
+    return result.text;
   } catch (error: unknown) {
     const isRateLimit =
       error instanceof Error &&
@@ -115,7 +143,7 @@ async function callClaude(
       const delay = RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
       console.warn(`Rate limit, ${delay}ms sonra tekrar deneniyor (deneme ${retryCount + 1}/${MAX_RETRIES})`);
       await sleep(delay);
-      return callClaude(systemPrompt, userPrompt, retryCount + 1);
+      return callAI(client, systemPrompt, userPrompt, temperature, retryCount + 1);
     }
 
     throw error;
@@ -145,10 +173,10 @@ function sleep(ms: number): Promise<void> {
 /**
  * Tek bir post'u Claude API ile siniflandirir.
  */
-export async function classifyPost(post: Post): Promise<AIClassification> {
+export async function classifyPost(post: Post, client: AIClient, ctx: BusinessContext = DEFAULT_CONTEXT): Promise<AIClassification> {
   try {
     const userPrompt = buildClassificationPrompt(post);
-    const responseText = await callClaude(SYSTEM_PROMPT_CLASSIFICATION, userPrompt);
+    const responseText = await callAI(client, buildClassificationSystemPrompt(ctx), userPrompt, ctx.aiTemperature);
     const result = parseJsonResponse<AIClassification>(responseText);
 
     // Validasyon
@@ -175,10 +203,10 @@ export async function classifyPost(post: Post): Promise<AIClassification> {
 /**
  * Lead bilgilerine gore kalite puani hesaplar.
  */
-export async function scoreLead(lead: Lead): Promise<LeadScore> {
+export async function scoreLead(lead: Lead, client: AIClient, ctx: BusinessContext = DEFAULT_CONTEXT): Promise<LeadScore> {
   try {
     const userPrompt = buildScoringPrompt(lead);
-    const responseText = await callClaude(SYSTEM_PROMPT_SCORING, userPrompt);
+    const responseText = await callAI(client, buildScoringSystemPrompt(ctx), userPrompt, ctx.aiTemperature);
     const result = parseJsonResponse<LeadScore>(responseText);
 
     // Breakdown degerlerini sinirlara oturt
@@ -211,10 +239,10 @@ export async function scoreLead(lead: Lead): Promise<LeadScore> {
 /**
  * Lead ve post bilgilerine gore kisisellestirilmis mesaj olusturur.
  */
-export async function generateMessage(lead: Lead, post: Post): Promise<MessageDraft> {
+export async function generateMessage(lead: Lead, post: Post, client: AIClient, ctx: BusinessContext = DEFAULT_CONTEXT): Promise<MessageDraft> {
   try {
     const userPrompt = buildMessagePrompt(lead, post);
-    const responseText = await callClaude(SYSTEM_PROMPT_MESSAGE, userPrompt);
+    const responseText = await callAI(client, buildMessageSystemPrompt(ctx), userPrompt, ctx.aiTemperature);
     const result = parseJsonResponse<{ subject: string; dmVersion: string; emailVersion: string }>(responseText);
 
     return {
@@ -240,7 +268,9 @@ export async function generateMessage(lead: Lead, post: Post): Promise<MessageDr
  */
 export async function classifyPostsBatch(
   posts: Post[],
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  client: AIClient,
+  ctx: BusinessContext = DEFAULT_CONTEXT
 ): Promise<{ classified: number; relevant: number; irrelevant: number }> {
   let classified = 0;
   let relevant = 0;
@@ -250,7 +280,7 @@ export async function classifyPostsBatch(
     const post = posts[i];
 
     try {
-      const classification = await classifyPost(post);
+      const classification = await classifyPost(post, client, ctx);
       classified++;
 
       if (classification.isRelevant) {

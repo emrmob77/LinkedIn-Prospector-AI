@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { classifyPostsBatch } from '@/services/aiClassificationService';
+import type { BusinessContext } from '@/services/aiClassificationService';
+import { getUserAIClient } from '@/lib/ai-client';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Post } from '@/types/models';
 
 export async function POST(request: NextRequest) {
@@ -109,8 +112,31 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(row.updated_at),
     }));
 
+    // Kullanıcının AI client ve firma bağlamını al
+    const aiClient = await getUserAIClient(user.id);
+
+    let businessCtx: BusinessContext | undefined;
+    try {
+      const { data: settings } = await supabaseAdmin
+        .from('user_settings')
+        .select('company_name, company_sector, product_description, target_customer, company_website, ai_temperature')
+        .eq('user_id', user.id)
+        .single();
+
+      if (settings?.company_sector) {
+        businessCtx = {
+          companyName: settings.company_name || 'Kurumsal Hediye Firmasi',
+          companySector: settings.company_sector,
+          productDescription: settings.product_description || '',
+          targetCustomer: settings.target_customer || '',
+          companyWebsite: settings.company_website || undefined,
+          aiTemperature: settings.ai_temperature != null ? Number(settings.ai_temperature) : undefined,
+        };
+      }
+    } catch { /* varsayılan context kullanılır */ }
+
     // Siniflandirma islemini baslat
-    const result = await classifyPostsBatch(typedPosts, supabase);
+    const result = await classifyPostsBatch(typedPosts, supabase, aiClient, businessCtx);
 
     // searchRunId varsa search_run tablosundaki posts_relevant alanini guncelle
     if (searchRunId) {

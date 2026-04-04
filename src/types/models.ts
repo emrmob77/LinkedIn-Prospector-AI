@@ -147,3 +147,44 @@ export interface SavedSearch {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// ============================================
+// Kullanıcı Ayarları
+// ============================================
+
+export type AIProvider = 'anthropic' | 'openai' | 'google' | 'openrouter';
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  anthropicApiKey: string | null;
+  openaiApiKey: string | null;
+  googleApiKey: string | null;
+  openrouterApiKey: string | null;
+  aiProvider: AIProvider;
+  aiModel: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Client'a gönderilen maskelenmiş versiyon — raw key asla expose edilmez */
+export interface UserSettingsPublic {
+  hasAnthropicKey: boolean;
+  hasOpenaiKey: boolean;
+  hasGoogleKey: boolean;
+  hasOpenrouterKey: boolean;
+  anthropicKeyHint: string | null;
+  openaiKeyHint: string | null;
+  googleKeyHint: string | null;
+  openrouterKeyHint: string | null;
+  aiProvider: AIProvider;
+  aiModel: string | null;
+  aiTemperature: number;
+  autoClassify: boolean;
+  // Firma bilgileri
+  companyName: string;
+  companySector: string;
+  productDescription: string;
+  targetCustomer: string;
+  companyWebsite: string | null;
+}

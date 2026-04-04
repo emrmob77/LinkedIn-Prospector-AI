@@ -89,7 +89,7 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
           href={externalLink || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          className={`block w-full overflow-hidden bg-muted ${!externalLink ? "pointer-events-none" : ""}`}
+          className={`relative block w-full overflow-hidden bg-muted ${!externalLink ? "pointer-events-none" : ""}`}
         >
           <Image
             src={post.images[0]}
