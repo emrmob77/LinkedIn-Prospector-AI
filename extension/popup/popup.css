@@ -186,6 +186,39 @@ body {
   background: #e2e8f0;
 }
 
+/* ---- AUTH FORM ---- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.auth-error {
+  color: #ef4444;
+  font-size: 11px;
+  text-align: center;
+  padding: 6px;
+  background: #fef2f2;
+  border-radius: 6px;
+}
+
+.auth-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.auth-hint a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.auth-hint a:hover {
+  text-decoration: underline;
+}
+
 /* ---- BUTONLAR ---- */
 .btn {
   display: inline-flex;

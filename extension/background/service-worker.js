@@ -66,6 +66,37 @@
     return await storageGet('authToken');
   }
 
+  // Supabase Auth sabitleri (token refresh icin)
+  var SUPABASE_URL = 'https://fmsqbgktiavuvvstevqt.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtc3FiZ2t0aWF2dXZ2c3RldnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTE3NDAsImV4cCI6MjA5MDQ2Nzc0MH0.hCpjrdGtwQX-OfOb1Q4k-cWJAbOt3nEoyflXxUvwDbA';
+
+  // Token yenileme fonksiyonu
+  async function refreshAuthToken() {
+    try {
+      var data = await storageGet('refreshToken');
+      if (!data) return false;
+
+      var response = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ refresh_token: data }),
+      });
+
+      if (!response.ok) return false;
+
+      var result = await response.json();
+      await storageSet('authToken', result.access_token);
+      await storageSet('refreshToken', result.refresh_token);
+      return true;
+    } catch (err) {
+      console.warn('[ServiceWorker] Token yenileme hatasi:', err.message);
+      return false;
+    }
+  }
+
   // Tek bir HTTP istegi gonder (retry yok)
   async function fetchOnce(method, path, body, token) {
     var baseUrl = await getBaseUrl();
@@ -101,6 +132,21 @@
     for (var attempt = 0; attempt <= RETRY_MAX; attempt++) {
       try {
         var response = await fetchOnce(method, path, body, token);
+
+        // 401 hatasi: token refresh dene, basariliysa istegi tekrar dene
+        if (response.status === 401 && attempt === 0) {
+          var refreshed = await refreshAuthToken();
+          if (refreshed) {
+            // Yeni token ile tekrar dene
+            token = await getAuthToken();
+            continue;
+          }
+          // Refresh basarisizsa popup'a AUTH_REQUIRED mesaji gonder
+          try {
+            chrome.runtime.sendMessage({ action: 'AUTH_REQUIRED' });
+          } catch (e) { /* popup kapali olabilir */ }
+          return await handleErrorResponse(response);
+        }
 
         // 4xx hatalari retry yapmadan direkt dondur (kullanici hatasi)
         if (response.status >= 400 && response.status < 500) {

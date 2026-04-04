@@ -34,25 +34,22 @@
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
         </div>
-        <h3 class="auth-title">Giriş Gerekli</h3>
-        <p class="auth-desc">Devam etmek için API token giriniz veya web uygulamasından giriş yapınız.</p>
+        <h3 class="auth-title">Giris Yap</h3>
+        <p class="auth-desc">Prospector AI hesabinizla giris yapin</p>
 
-        <div class="auth-input-group">
-          <input id="token-input" type="password" class="auth-input" placeholder="API Token yapıştırın..." />
-          <button id="btn-save-token" class="btn btn-primary btn-sm">Kaydet</button>
+        <div class="auth-form">
+          <input id="login-email" type="email" class="auth-input" placeholder="E-posta adresiniz" />
+          <input id="login-password" type="password" class="auth-input" placeholder="Sifreniz" />
+          <div id="login-error" class="auth-error hidden"></div>
+          <button id="btn-login" class="btn btn-primary btn-full">
+            <span id="btn-login-text">Giris Yap</span>
+            <span id="login-spinner" class="spinner hidden"></span>
+          </button>
         </div>
 
-        <div class="auth-divider">
-          <span>veya</span>
-        </div>
-
-        <button id="btn-login" class="btn btn-outline btn-full">
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          Web Uygulamasından Giriş Yap
-        </button>
+        <p class="auth-hint">
+          Hesabiniz yok mu? <a href="https://linked-in-prospector-ai.vercel.app/signup" target="_blank">Kayit Ol</a>
+        </p>
       </div>
     </section>
 

@@ -12,8 +12,12 @@
     production: 'https://linked-in-prospector-ai.vercel.app',
     local: 'http://localhost:3000'
   };
-  var APP_URL = ENVIRONMENTS.production; // varsayılan, init'te güncellenir
+  var APP_URL = ENVIRONMENTS.production; // varsayilan, init'te guncellenir
   var TOAST_DURATION = 4000;
+
+  // Supabase Auth sabitleri
+  var SUPABASE_URL = 'https://fmsqbgktiavuvvstevqt.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtc3FiZ2t0aWF2dXZ2c3RldnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTE3NDAsImV4cCI6MjA5MDQ2Nzc0MH0.hCpjrdGtwQX-OfOb1Q4k-cWJAbOt3nEoyflXxUvwDbA';
 
   // Sayfa tipi eslemeleri: { regex/test, label, badgeClass }
   var PAGE_TYPES = [
@@ -32,9 +36,12 @@
     connectionText: $('connection-text'),
     // Auth
     authSection: $('auth-section'),
-    tokenInput: $('token-input'),
-    btnSaveToken: $('btn-save-token'),
+    loginEmail: $('login-email'),
+    loginPassword: $('login-password'),
+    loginError: $('login-error'),
     btnLogin: $('btn-login'),
+    btnLoginText: $('btn-login-text'),
+    loginSpinner: $('login-spinner'),
     // Ana bolum
     mainSection: $('main-section'),
     pageTypeBadge: $('page-type-badge'),
@@ -68,6 +75,7 @@
     scannedPosts: [],
     isScanning: false,
     isImporting: false,
+    isLoggingIn: false,
     currentPageUrl: '',
     currentPageType: null,
     toastTimer: null,
@@ -79,6 +87,12 @@
   async function init() {
     // Paralel olarak auth kontrolu ve baglanti kontrolu yap
     var authOk = await checkAuth();
+
+    if (!authOk) {
+      // Token var ama gecersiz olabilir, refresh dene
+      authOk = await refreshAuthToken();
+    }
+
     checkConnection(); // async, sonucu beklemiyoruz
 
     if (authOk) {
@@ -105,29 +119,123 @@
     }
   }
 
-  // Token kaydet
-  async function saveAuthToken(token) {
-    if (!token || !token.trim()) {
-      showToast('Lutfen gecerli bir token giriniz.', 'error');
+  // Email + password ile Supabase Auth login
+  async function loginWithEmail(email, password) {
+    var response = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ email: email, password: password }),
+    });
+
+    if (!response.ok) {
+      var data = await response.json();
+      throw new Error(data.msg || data.error_description || data.message || 'Giris basarisiz');
+    }
+
+    var data = await response.json();
+    // access_token'i kaydet
+    await chrome.storage.local.set({
+      authToken: data.access_token,
+      refreshToken: data.refresh_token,
+      userEmail: email,
+    });
+    return data;
+  }
+
+  // Token yenileme fonksiyonu
+  async function refreshAuthToken() {
+    try {
+      var data = await chrome.storage.local.get('refreshToken');
+      if (!data.refreshToken) return false;
+
+      var response = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ refresh_token: data.refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      var result = await response.json();
+      await chrome.storage.local.set({
+        authToken: result.access_token,
+        refreshToken: result.refresh_token,
+      });
+      return true;
+    } catch (err) {
+      console.warn('[Popup] Token yenileme hatasi:', err.message);
+      return false;
+    }
+  }
+
+  // Login butonuna tiklandiginda
+  async function handleLoginSubmit() {
+    if (state.isLoggingIn) return;
+
+    var email = el.loginEmail.value.trim();
+    var password = el.loginPassword.value;
+
+    // Validasyon
+    if (!email) {
+      showLoginError('Lutfen e-posta adresinizi girin.');
+      return;
+    }
+    if (!password) {
+      showLoginError('Lutfen sifrenizi girin.');
       return;
     }
 
+    state.isLoggingIn = true;
+    setLoginLoading(true);
+    hideLoginError();
+
     try {
-      await chrome.storage.local.set({ authToken: token.trim() });
-      showToast('Token basariyla kaydedildi!', 'success');
+      await loginWithEmail(email, password);
+      showToast('Giris basarili!', 'success');
       showMainSection();
       await updatePageInfo();
-      // Baglanti kontrolunu tekrar yap
       checkConnection();
     } catch (err) {
-      showToast('Token kaydedilemedi: ' + err.message, 'error');
+      showLoginError(err.message || 'Giris basarisiz. Lutfen bilgilerinizi kontrol edin.');
+    } finally {
+      state.isLoggingIn = false;
+      setLoginLoading(false);
     }
+  }
+
+  // Login loading durumu
+  function setLoginLoading(loading) {
+    el.btnLogin.disabled = loading;
+    el.btnLoginText.textContent = loading ? 'Giris yapiliyor...' : 'Giris Yap';
+    if (loading) {
+      el.loginSpinner.classList.remove('hidden');
+    } else {
+      el.loginSpinner.classList.add('hidden');
+    }
+  }
+
+  // Login hata mesaji goster
+  function showLoginError(message) {
+    el.loginError.textContent = message;
+    el.loginError.classList.remove('hidden');
+  }
+
+  // Login hata mesajini gizle
+  function hideLoginError() {
+    el.loginError.textContent = '';
+    el.loginError.classList.add('hidden');
   }
 
   // Cikis yap (token sil)
   async function handleLogout() {
     try {
-      await chrome.storage.local.remove('authToken');
+      await chrome.storage.local.remove(['authToken', 'refreshToken', 'userEmail']);
       state.scannedPosts = [];
       showAuthSection();
       showToast('Cikis yapildi.', 'info');
@@ -136,15 +244,14 @@
     }
   }
 
-  // Web uygulamasindan giris linki
-  function handleLogin() {
-    chrome.tabs.create({ url: APP_URL + '/auth/extension-token' });
-  }
-
   // UI: Auth bolumunu goster
   function showAuthSection() {
     el.authSection.classList.remove('hidden');
     el.mainSection.classList.add('hidden');
+    // Formu temizle
+    if (el.loginEmail) el.loginEmail.value = '';
+    if (el.loginPassword) el.loginPassword.value = '';
+    hideLoginError();
   }
 
   // UI: Ana bolumu goster
@@ -577,20 +684,22 @@
   // EVENT LISTENER'LAR
   // ===========================================
 
-  // Token kaydet butonu
-  el.btnSaveToken.addEventListener('click', function () {
-    saveAuthToken(el.tokenInput.value);
-  });
+  // Login butonu
+  el.btnLogin.addEventListener('click', handleLoginSubmit);
 
-  // Token input'ta Enter tusu ile kaydet
-  el.tokenInput.addEventListener('keydown', function (e) {
+  // Email input'ta Enter tusu ile password'a gecis
+  el.loginEmail.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
-      saveAuthToken(el.tokenInput.value);
+      el.loginPassword.focus();
     }
   });
 
-  // Web uygulamasindan giris
-  el.btnLogin.addEventListener('click', handleLogin);
+  // Password input'ta Enter tusu ile login
+  el.loginPassword.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      handleLoginSubmit();
+    }
+  });
 
   // Cikis yap
   el.btnLogout.addEventListener('click', handleLogout);

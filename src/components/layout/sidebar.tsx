@@ -9,6 +9,7 @@ import {
   FileText,
   LogOut,
   Settings,
+  UserCircle,
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,18 @@ export function Sidebar() {
           Ayarlar
         </p>
         <Link
+          href="/profile"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+            pathname === "/profile"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <UserCircle className="h-4 w-4" />
+          Hesabim
+        </Link>
+        <Link
           href="/settings"
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
@@ -122,7 +135,7 @@ export function Sidebar() {
           )}
         >
           <Settings className="h-4 w-4" />
-          Yapılandırma
+          Yapilandirma
         </Link>
       </nav>
 
