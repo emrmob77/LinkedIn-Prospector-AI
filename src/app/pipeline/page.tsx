@@ -6,7 +6,7 @@ import { PipelineTable, type LeadData } from "@/components/pipeline/pipeline-tab
 import { LeadDetailPanel } from "@/components/pipeline/lead-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Users, BarChart3, AlertCircle } from "lucide-react";
+import { Download, Users, BarChart3, AlertCircle, Loader2, Target } from "lucide-react";
 
 // Stage renk ve stil konfigurasyonu
 const STAGE_CONFIG = [
@@ -50,6 +50,7 @@ export default function PipelinePage() {
   // Filtreler
   const [stageFilter, setStageFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [scoring, setScoring] = useState(false);
 
   // Istatistikleri cek
   const fetchStats = useCallback(async () => {
@@ -153,9 +154,22 @@ export default function PipelinePage() {
       description="Leadlerinizi 6 asamali pipeline uzerinden yonetin"
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={scoring}
+            onClick={async () => {
+              setScoring(true);
+              try {
+                const res = await fetch("/api/leads/score", { method: "POST" });
+                if (res.ok) {
+                  fetchStats(); fetchLeads();
+                }
+              } catch {} finally { setScoring(false); }
+            }}>
+            {scoring ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Target className="mr-2 h-3.5 w-3.5" />}
+            {scoring ? "Puanlanıyor..." : "Lead Puanla"}
+          </Button>
           <Button variant="outline" size="sm">
             <Download className="mr-2 h-3.5 w-3.5" />
-            Disa Aktar
+            Dışa Aktar
           </Button>
         </div>
       }
