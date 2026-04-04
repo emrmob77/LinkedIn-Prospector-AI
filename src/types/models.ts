@@ -170,6 +170,9 @@ export interface UserSettings {
   productDescription: string;
   targetCustomer: string;
   companyWebsite: string | null;
+  classificationPrompt: string;
+  companyContext: string;
+  messagePrompt: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -194,4 +197,7 @@ export interface UserSettingsPublic {
   productDescription: string;
   targetCustomer: string;
   companyWebsite: string | null;
+  classificationPrompt: string;
+  companyContext: string;
+  messagePrompt: string;
 }

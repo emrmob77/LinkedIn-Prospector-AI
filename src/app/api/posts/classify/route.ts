@@ -119,17 +119,15 @@ export async function POST(request: NextRequest) {
     try {
       const { data: settings } = await supabaseAdmin
         .from('user_settings')
-        .select('company_name, company_sector, product_description, target_customer, company_website, ai_temperature')
+        .select('classification_prompt, company_context, message_prompt, ai_temperature')
         .eq('user_id', user.id)
         .single();
 
-      if (settings?.company_sector) {
+      if (settings) {
         businessCtx = {
-          companyName: settings.company_name || 'Kurumsal Hediye Firmasi',
-          companySector: settings.company_sector,
-          productDescription: settings.product_description || '',
-          targetCustomer: settings.target_customer || '',
-          companyWebsite: settings.company_website || undefined,
+          classificationPrompt: settings.classification_prompt || '',
+          companyContext: settings.company_context || '',
+          messagePrompt: settings.message_prompt || '',
           aiTemperature: settings.ai_temperature != null ? Number(settings.ai_temperature) : undefined,
         };
       }

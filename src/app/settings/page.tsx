@@ -30,6 +30,10 @@ import {
   Shield,
   Building2,
   Bot,
+  RotateCcw,
+  Brain,
+  Building,
+  MessageSquare,
 } from "lucide-react";
 import { PROVIDER_MODELS } from "@/lib/ai-models";
 import type { UserSettingsPublic, AIProvider } from "@/types/models";
@@ -93,12 +97,22 @@ export default function SettingsPage() {
   const [aiTemperature, setAiTemperature] = useState(0.3);
   const [autoClassify, setAutoClassify] = useState(true);
 
-  // Firma bilgileri
+  // Firma bilgileri (eski alanlar - geriye uyumluluk)
   const [companyName, setCompanyName] = useState("");
   const [companySector, setCompanySector] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [targetCustomer, setTargetCustomer] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
+
+  // AI Prompt alanları
+  const PROMPT_DEFAULTS = {
+    classificationPrompt: "Kurumsal hediye, promosyon ürünleri, çalışan motivasyonu, etkinlik organizasyonu ile ilgili postları ilgili olarak işaretle. B2B hediye alımı sinyallerini ve rakip firma aktivitelerini de yakala.",
+    companyContext: "Kurumsal hediye ve promosyon sektöründe faaliyet gösteren bir firmayız. Ürünlerimiz: kurumsal hediyeler, promosyon ürünleri, çalışan motivasyon paketleri. Hedef müşterilerimiz: B2B firmalar, İK departmanları, pazarlama ekipleri.",
+    messagePrompt: "Samimi ve profesyonel ton kullan. Satış baskısı yapma, değer önerisi sun. Kişinin paylaşımını referans al. Türkçe yaz.",
+  };
+  const [classificationPrompt, setClassificationPrompt] = useState(PROMPT_DEFAULTS.classificationPrompt);
+  const [companyContext, setCompanyContext] = useState(PROMPT_DEFAULTS.companyContext);
+  const [messagePrompt, setMessagePrompt] = useState(PROMPT_DEFAULTS.messagePrompt);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -115,6 +129,9 @@ export default function SettingsPage() {
         setProductDescription(data.productDescription);
         setTargetCustomer(data.targetCustomer);
         setCompanyWebsite(data.companyWebsite || "");
+        setClassificationPrompt(data.classificationPrompt || PROMPT_DEFAULTS.classificationPrompt);
+        setCompanyContext(data.companyContext || PROMPT_DEFAULTS.companyContext);
+        setMessagePrompt(data.messagePrompt || PROMPT_DEFAULTS.messagePrompt);
       }
     } catch { /* ignore */ } finally {
       setLoading(false);
@@ -130,6 +147,7 @@ export default function SettingsPage() {
       const body: Record<string, unknown> = {
         aiProvider, aiModel, aiTemperature, autoClassify,
         companyName, companySector, productDescription, targetCustomer, companyWebsite,
+        classificationPrompt, companyContext, messagePrompt,
       };
       if (keys.anthropicKey.trim()) body.anthropicApiKey = keys.anthropicKey.trim();
       if (keys.openaiKey.trim()) body.openaiApiKey = keys.openaiKey.trim();
@@ -201,7 +219,7 @@ export default function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="company" className="gap-1.5">
               <Building2 className="h-3.5 w-3.5" />
-              Firma Bilgileri
+              AI Talimatları
             </TabsTrigger>
           </TabsList>
 
@@ -349,66 +367,128 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* ============ Firma Tab ============ */}
+          {/* ============ Firma / AI Talimatları Tab ============ */}
           <TabsContent value="company" className="space-y-4 mt-4">
+            {/* Sınıflandırma Talimatı */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Firma Bilgileri</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Sınıflandırma Talimatı</CardTitle>
+                </div>
                 <CardDescription className="text-xs">
-                  AI, bu bilgileri kullanarak sektörünüze özel sınıflandırma ve mesaj üretir
+                  AI hangi LinkedIn postlarını &quot;ilgili&quot; olarak isaretleyecek? Sektorunuze, urunlerinize ve takip etmek istediginiz sinyallere gore talimat verin.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="company-name" className="text-xs">Firma Adı</Label>
-                  <Input id="company-name" value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Firma adınız" className="h-8 text-xs" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="company-sector" className="text-xs">Sektör / İş Alanı</Label>
-                  <Input id="company-sector" value={companySector}
-                    onChange={(e) => setCompanySector(e.target.value)}
-                    placeholder="Kurumsal hediye ve promosyon" className="h-8 text-xs" />
-                  <p className="text-[10px] text-muted-foreground">
-                    AI bu sektöre göre LinkedIn postlarını sınıflandırır
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="product-desc" className="text-xs">Ürün / Hizmet Açıklaması</Label>
-                  <Textarea id="product-desc" value={productDescription}
-                    onChange={(e) => setProductDescription(e.target.value)}
-                    placeholder="Sunduğunuz ürün ve hizmetleri kısaca açıklayın"
-                    className="text-xs min-h-[60px] resize-none" maxLength={500} />
-                  <p className="text-[10px] text-muted-foreground text-right">{productDescription.length}/500</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="target-customer" className="text-xs">Hedef Müşteri Profili</Label>
-                  <Textarea id="target-customer" value={targetCustomer}
-                    onChange={(e) => setTargetCustomer(e.target.value)}
-                    placeholder="İdeal müşterinizi tanımlayın"
-                    className="text-xs min-h-[60px] resize-none" maxLength={300} />
-                  <p className="text-[10px] text-muted-foreground text-right">{targetCustomer.length}/300</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="company-website" className="text-xs">Web Sitesi (opsiyonel)</Label>
-                  <Input id="company-website" type="url" value={companyWebsite}
-                    onChange={(e) => setCompanyWebsite(e.target.value)}
-                    placeholder="https://firmaniz.com" className="h-8 text-xs" />
+              <CardContent className="space-y-2">
+                <Textarea
+                  id="classification-prompt"
+                  value={classificationPrompt}
+                  onChange={(e) => setClassificationPrompt(e.target.value)}
+                  placeholder="Ornek: SaaS, bulut bilisim, dijital donusum ile ilgili postlari ilgili olarak isaretle..."
+                  className="text-xs min-h-[100px] resize-y"
+                  maxLength={1000}
+                />
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] text-muted-foreground hover:text-foreground gap-1 px-2"
+                    onClick={() => setClassificationPrompt(PROMPT_DEFAULTS.classificationPrompt)}
+                    disabled={classificationPrompt === PROMPT_DEFAULTS.classificationPrompt}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Varsayilana Sifirla
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {classificationPrompt.length}/1000
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Güvenlik */}
+            {/* Firma Bağlamı */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Firma Baglami</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  AI&apos;in bilmesi gereken firma bilgileri. Sektorunuz, urunleriniz, hedef kitleniz — ne kadar detay verirseniz AI o kadar isabetli calisir.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Textarea
+                  id="company-context"
+                  value={companyContext}
+                  onChange={(e) => setCompanyContext(e.target.value)}
+                  placeholder="Ornek: Yazilim sektorunde B2B SaaS urunleri gelistiriyoruz. CRM ve otomasyon araclarimiz var..."
+                  className="text-xs min-h-[100px] resize-y"
+                  maxLength={1500}
+                />
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] text-muted-foreground hover:text-foreground gap-1 px-2"
+                    onClick={() => setCompanyContext(PROMPT_DEFAULTS.companyContext)}
+                    disabled={companyContext === PROMPT_DEFAULTS.companyContext}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Varsayilana Sifirla
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {companyContext.length}/1500
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Mesaj Oluşturma Talimatı */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Mesaj Olusturma Talimati</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  AI lead&apos;lere mesaj yazarken hangi tonu, yaklasimi ve kurallari kullansin? Dil tercihi, uzunluk, icerik yonergeleri belirtin.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Textarea
+                  id="message-prompt"
+                  value={messagePrompt}
+                  onChange={(e) => setMessagePrompt(e.target.value)}
+                  placeholder="Ornek: Resmi ama sicak bir ton kullan. Maksimum 3 cumle. Ingilizce yaz..."
+                  className="text-xs min-h-[100px] resize-y"
+                  maxLength={1000}
+                />
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] text-muted-foreground hover:text-foreground gap-1 px-2"
+                    onClick={() => setMessagePrompt(PROMPT_DEFAULTS.messagePrompt)}
+                    disabled={messagePrompt === PROMPT_DEFAULTS.messagePrompt}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Varsayilana Sifirla
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {messagePrompt.length}/1000
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bilgi notu */}
             <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
               <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground">
-                Firma bilgileri yalnızca AI sınıflandırma ve mesaj oluşturma süreçlerinde kullanılır.
-                Üçüncü taraflarla paylaşılmaz.
+                Bu talimatlar yalnizca AI siniflandirma ve mesaj olusturma sureclerinde kullanilir.
+                Ucuncu taraflarla paylasilmaz. Talimatlarinizi ne kadar detayli yazarsaniz, AI o kadar isabetli calisir.
               </p>
             </div>
           </TabsContent>

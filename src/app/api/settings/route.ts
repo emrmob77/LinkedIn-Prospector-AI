@@ -37,6 +37,9 @@ const DEFAULTS = {
   companySector: 'Kurumsal hediye ve promosyon',
   productDescription: 'Kurumsal hediye, promosyon ürünleri, çalışan motivasyon paketleri, etkinlik organizasyonu malzemeleri',
   targetCustomer: 'B2B firmalar, kurumsal etkinlik organizatörleri, İK departmanları, pazarlama ekipleri',
+  classificationPrompt: 'Kurumsal hediye, promosyon ürünleri, çalışan motivasyonu, etkinlik organizasyonu ile ilgili postları ilgili olarak işaretle. B2B hediye alımı sinyallerini ve rakip firma aktivitelerini de yakala.',
+  companyContext: 'Kurumsal hediye ve promosyon sektöründe faaliyet gösteren bir firmayız. Ürünlerimiz: kurumsal hediyeler, promosyon ürünleri, çalışan motivasyon paketleri. Hedef müşterilerimiz: B2B firmalar, İK departmanları, pazarlama ekipleri.',
+  messagePrompt: 'Samimi ve profesyonel ton kullan. Satış baskısı yapma, değer önerisi sun. Kişinin paylaşımını referans al. Türkçe yaz.',
 };
 
 /** DB row'dan UserSettingsPublic üretir */
@@ -60,6 +63,9 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
       productDescription: DEFAULTS.productDescription,
       targetCustomer: DEFAULTS.targetCustomer,
       companyWebsite: null,
+      classificationPrompt: DEFAULTS.classificationPrompt,
+      companyContext: DEFAULTS.companyContext,
+      messagePrompt: DEFAULTS.messagePrompt,
     };
   }
 
@@ -81,6 +87,9 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
     productDescription: (row.product_description as string) || DEFAULTS.productDescription,
     targetCustomer: (row.target_customer as string) || DEFAULTS.targetCustomer,
     companyWebsite: (row.company_website as string) || null,
+    classificationPrompt: (row.classification_prompt as string) || DEFAULTS.classificationPrompt,
+    companyContext: (row.company_context as string) || DEFAULTS.companyContext,
+    messagePrompt: (row.message_prompt as string) || DEFAULTS.messagePrompt,
   };
 }
 
@@ -134,6 +143,9 @@ export async function PUT(request: NextRequest) {
       productDescription,
       targetCustomer,
       companyWebsite,
+      classificationPrompt,
+      companyContext,
+      messagePrompt,
     } = body as {
       anthropicApiKey?: string;
       openaiApiKey?: string;
@@ -148,6 +160,9 @@ export async function PUT(request: NextRequest) {
       productDescription?: string;
       targetCustomer?: string;
       companyWebsite?: string;
+      classificationPrompt?: string;
+      companyContext?: string;
+      messagePrompt?: string;
     };
 
     // Güncellenecek alanları hazırla
@@ -195,6 +210,9 @@ export async function PUT(request: NextRequest) {
     if (productDescription !== undefined) updates.product_description = productDescription.trim() || null;
     if (targetCustomer !== undefined) updates.target_customer = targetCustomer.trim() || null;
     if (companyWebsite !== undefined) updates.company_website = companyWebsite.trim() || null;
+    if (classificationPrompt !== undefined) updates.classification_prompt = classificationPrompt.trim() || null;
+    if (companyContext !== undefined) updates.company_context = companyContext.trim() || null;
+    if (messagePrompt !== undefined) updates.message_prompt = messagePrompt.trim() || null;
 
     // Atomik upsert
     const { error: upsertError } = await supabaseAdmin

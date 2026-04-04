@@ -19,19 +19,16 @@ const RETRY_BASE_DELAY_MS = 2000;
 // ============================================
 
 export interface BusinessContext {
-  companySector: string;
-  productDescription: string;
-  targetCustomer: string;
-  companyName: string;
-  companyWebsite?: string;
+  classificationPrompt: string;
+  companyContext: string;
+  messagePrompt: string;
   aiTemperature?: number;
 }
 
 const DEFAULT_CONTEXT: BusinessContext = {
-  companyName: 'Kurumsal Hediye Firmasi',
-  companySector: 'Kurumsal hediye ve promosyon',
-  productDescription: 'Kurumsal hediye, promosyon ürünleri, çalışan motivasyon paketleri, etkinlik organizasyonu malzemeleri',
-  targetCustomer: 'B2B firmalar, kurumsal etkinlik organizatörleri, İK departmanları, pazarlama ekipleri',
+  classificationPrompt: 'Kurumsal hediye, promosyon ürünleri, çalışan motivasyonu, etkinlik organizasyonu ile ilgili postları ilgili olarak işaretle. B2B hediye alımı sinyallerini ve rakip firma aktivitelerini de yakala.',
+  companyContext: 'Kurumsal hediye ve promosyon sektöründe faaliyet gösteren bir firmayız. Ürünlerimiz: kurumsal hediyeler, promosyon ürünleri, çalışan motivasyon paketleri. Hedef müşterilerimiz: B2B firmalar, İK departmanları, pazarlama ekipleri.',
+  messagePrompt: 'Samimi ve profesyonel ton kullan. Satış baskısı yapma, değer önerisi sun. Kişinin paylaşımını referans al. Türkçe yaz.',
 };
 
 // ============================================
@@ -39,13 +36,13 @@ const DEFAULT_CONTEXT: BusinessContext = {
 // ============================================
 
 function buildClassificationSystemPrompt(ctx: BusinessContext): string {
-  return `Sen bir ${ctx.companySector} sektörü analistisin. LinkedIn gönderilerini analiz ederek potansiyel müşteri adaylarını belirle.
+  return `Sen bir LinkedIn gönderi analistisin. Gönderileri analiz ederek potansiyel müşteri adaylarını belirle.
 
-Görevin: Verilen LinkedIn gönderisini ${ctx.companySector} ve ilgili sektörler açısından değerlendir.
+Firma bağlamı:
+${ctx.companyContext}
 
-Firma hakkında bilgi:
-- Ürünler/Hizmetler: ${ctx.productDescription}
-- Hedef müşteri profili: ${ctx.targetCustomer}
+Sınıflandırma talimatı:
+${ctx.classificationPrompt}
 
 Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
 {
@@ -57,7 +54,7 @@ Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin eklem
   "reasoning": string
 }
 
-isRelevant: Gönderi firmanın sektörü veya hedef müşteri profili ile ilgiliyse true
+isRelevant: Gönderi talimattaki kriterlere uyuyorsa true
 confidence: Ne kadar emin olduğun (0-100)
 theme: Ana tema (sektöre uygun kısa açıklama)
 giftType: Spesifik ürün/hizmet türü varsa, yoksa null
@@ -66,7 +63,10 @@ reasoning: 1-2 cümlelik Türkçe açıklama`;
 }
 
 function buildScoringSystemPrompt(ctx: BusinessContext): string {
-  return `Sen bir B2B satış analistisin. Verilen lead (potansiyel müşteri) bilgilerini ${ctx.companySector} sektörü açısından değerlendir ve kalite puanı hesapla.
+  return `Sen bir B2B satış analistisin. Verilen lead bilgilerini değerlendir ve kalite puanı hesapla.
+
+Firma bağlamı:
+${ctx.companyContext}
 
 Yanıtını SADECE aşağıdaki JSON formatında ver:
 {
@@ -83,16 +83,19 @@ Yanıtını SADECE aşağıdaki JSON formatında ver:
 Puanlama kriterleri:
 - companySize (0-30): Büyük/orta ölçekli firmalar daha yüksek puan
 - projectClarity (0-25): Net bir proje/ihtiyaç belirtmişse yüksek puan
-- industryFit (0-20): ${ctx.companySector} sektörüne uygunluk
+- industryFit (0-20): Firma sektörüne uygunluk
 - timing (0-15): Acil/yakın zamanlı ihtiyaç sinyalleri
 - competitorStatus (0-10): Rakip kullanmıyorsa veya memnun değilse yüksek puan`;
 }
 
 function buildMessageSystemPrompt(ctx: BusinessContext): string {
-  return `Sen ${ctx.companyName} firmasının satış uzmanısın. ${ctx.companySector} sektöründe kişiselleştirilmiş, profesyonel ve samimi iletişim mesajları oluştur.
+  return `Sen bir satış uzmanısın. Kişiselleştirilmiş iletişim mesajları oluştur.
 
-Firma bilgisi: ${ctx.productDescription}
-${ctx.companyWebsite ? `Web: ${ctx.companyWebsite}` : ''}
+Firma bağlamı:
+${ctx.companyContext}
+
+Mesaj talimatı:
+${ctx.messagePrompt}
 
 Yanıtını SADECE aşağıdaki JSON formatında ver:
 {
@@ -102,12 +105,10 @@ Yanıtını SADECE aşağıdaki JSON formatında ver:
 }
 
 Kurallar:
-- dmVersion: LinkedIn DM için kısa ve öz (3-4 cümle), samimi ton
-- emailVersion: E-posta için daha detaylı (5-6 cümle), profesyonel ton
+- dmVersion: LinkedIn DM için kısa (3-4 cümle)
+- emailVersion: E-posta için detaylı (5-6 cümle)
 - subject: E-posta konu satırı
-- Kişinin adını, şirketini ve paylaşımını referans al
-- Satış baskısı yapma, değer önerisi sun
-- Türkçe yaz`;
+- Kişinin adını, şirketini ve paylaşımını referans al`;
 }
 
 // ============================================
