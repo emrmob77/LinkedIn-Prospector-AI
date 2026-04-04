@@ -150,13 +150,6 @@ export async function PUT(request: NextRequest) {
       companyWebsite?: string;
     };
 
-    // Mevcut ayarları al
-    const { data: existing } = await supabaseAdmin
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
     // Güncellenecek alanları hazırla
     const updates: Record<string, unknown> = {
       user_id: user.id,
@@ -203,26 +196,14 @@ export async function PUT(request: NextRequest) {
     if (targetCustomer !== undefined) updates.target_customer = targetCustomer.trim() || null;
     if (companyWebsite !== undefined) updates.company_website = companyWebsite.trim() || null;
 
-    // Upsert
-    if (existing) {
-      const { error } = await supabaseAdmin
-        .from('user_settings')
-        .update(updates)
-        .eq('user_id', user.id);
+    // Atomik upsert
+    const { error: upsertError } = await supabaseAdmin
+      .from('user_settings')
+      .upsert(updates, { onConflict: 'user_id' });
 
-      if (error) {
-        console.error('Settings update hatası:', error);
-        return NextResponse.json({ error: 'Ayarlar güncellenemedi' }, { status: 500 });
-      }
-    } else {
-      const { error } = await supabaseAdmin
-        .from('user_settings')
-        .insert(updates);
-
-      if (error) {
-        console.error('Settings insert hatası:', error);
-        return NextResponse.json({ error: 'Ayarlar kaydedilemedi' }, { status: 500 });
-      }
+    if (upsertError) {
+      console.error('Settings upsert hatası:', upsertError);
+      return NextResponse.json({ error: 'Ayarlar kaydedilemedi' }, { status: 500 });
     }
 
     // Güncel ayarları döndür

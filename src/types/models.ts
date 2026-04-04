@@ -163,6 +163,13 @@ export interface UserSettings {
   openrouterApiKey: string | null;
   aiProvider: AIProvider;
   aiModel: string | null;
+  aiTemperature: number;
+  autoClassify: boolean;
+  companyName: string;
+  companySector: string;
+  productDescription: string;
+  targetCustomer: string;
+  companyWebsite: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

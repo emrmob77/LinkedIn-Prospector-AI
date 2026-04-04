@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Siniflandirma API hatasi:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Beklenmeyen hata' },
+      { error: 'Sınıflandırma sırasında bir hata oluştu. Lütfen API anahtarınızı kontrol edin.' },
       { status: 500 }
     );
   }

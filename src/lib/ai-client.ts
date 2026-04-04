@@ -33,15 +33,12 @@ export interface AIClient {
 // Provider implementasyonları
 // ============================================
 
-/** Anthropic Claude (direkt veya OpenRouter üzerinden) */
-function createAnthropicClient(apiKey: string, provider: AIProvider, userModel: string | null): AIClient {
-  const client = new Anthropic({
-    apiKey,
-    ...(provider === 'openrouter' ? { baseURL: 'https://openrouter.ai/api/v1' } : {}),
-  });
+/** Anthropic Claude (direkt) */
+function createAnthropicClient(apiKey: string, userModel: string | null): AIClient {
+  const client = new Anthropic({ apiKey });
 
   return {
-    provider,
+    provider: 'anthropic',
     model: userModel,
     async chat({ model, maxTokens, temperature, systemPrompt, userMessage }) {
       const response = await client.messages.create({
@@ -56,6 +53,35 @@ function createAnthropicClient(apiKey: string, provider: AIProvider, userModel: 
         throw new Error('Claude yanıtında text block bulunamadı');
       }
       return { text: textBlock.text };
+    },
+  };
+}
+
+/** OpenRouter — OpenAI-uyumlu API kullanır */
+function createOpenRouterClient(apiKey: string, userModel: string | null): AIClient {
+  const client = new OpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+  });
+
+  return {
+    provider: 'openrouter',
+    model: userModel,
+    async chat({ model, maxTokens, temperature, systemPrompt, userMessage }) {
+      const response = await client.chat.completions.create({
+        model: userModel || model,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      });
+      const text = response.choices[0]?.message?.content;
+      if (!text) {
+        throw new Error('OpenRouter yanıtında içerik bulunamadı');
+      }
+      return { text };
     },
   };
 }
@@ -93,14 +119,14 @@ function createGoogleClient(apiKey: string, userModel: string | null): AIClient 
   return {
     provider: 'google',
     model: userModel,
-    async chat({ model, temperature, systemPrompt, userMessage }) {
+    async chat({ model, maxTokens, temperature, systemPrompt, userMessage }) {
       const geminiModel = genAI.getGenerativeModel({
         model: userModel || model,
         systemInstruction: systemPrompt,
       });
       const result = await geminiModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: { temperature },
+        generationConfig: { temperature, maxOutputTokens: maxTokens },
       });
       const text = result.response.text();
       if (!text) {
@@ -160,10 +186,10 @@ export async function getUserAIClient(userId: string): Promise<AIClient> {
           case 'google':
             return createGoogleClient(key, userModel);
           case 'openrouter':
-            return createAnthropicClient(key, 'openrouter', userModel);
+            return createOpenRouterClient(key, userModel);
           case 'anthropic':
           default:
-            return createAnthropicClient(key, 'anthropic', userModel);
+            return createAnthropicClient(key, userModel);
         }
       }
     }
@@ -177,5 +203,5 @@ export async function getUserAIClient(userId: string): Promise<AIClient> {
     throw new Error('AI API anahtarı bulunamadı. Lütfen Yapılandırma sayfasından API anahtarınızı girin.');
   }
 
-  return createAnthropicClient(fallbackKey, 'anthropic', null);
+  return createAnthropicClient(fallbackKey, null);
 }

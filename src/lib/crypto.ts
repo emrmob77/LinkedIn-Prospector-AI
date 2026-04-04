@@ -9,7 +9,9 @@ function getEncryptionKey(): Buffer {
   if (!key) {
     throw new Error('SETTINGS_ENCRYPTION_KEY environment variable is not set');
   }
-  // 64 hex char = 32 byte key
+  if (key.length !== 64) {
+    throw new Error('SETTINGS_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
+  }
   return Buffer.from(key, 'hex');
 }
 
