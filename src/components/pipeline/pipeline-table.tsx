@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -20,73 +19,141 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Filter, MoreHorizontal } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Filter, ChevronRight, ChevronLeft, FileText } from "lucide-react";
 
-const PIPELINE_STAGES = [
-  { value: "all", label: "Tüm Aşamalar" },
-  { value: "İletişim Kurulacak", label: "İletişim Kurulacak" },
-  { value: "İletişim Kuruldu", label: "İletişim Kuruldu" },
-  { value: "Cevap Alındı", label: "Cevap Alındı" },
-  { value: "Görüşme", label: "Görüşme" },
-  { value: "Teklif", label: "Teklif" },
-  { value: "Arşiv", label: "Arşiv" },
+// API stage degerleri (veritabanindaki enum)
+const API_STAGES = [
+  { value: "to_contact", label: "Iletisim Kurulacak" },
+  { value: "contacted", label: "Iletisim Kuruldu" },
+  { value: "replied", label: "Cevap Alindi" },
+  { value: "meeting", label: "Gorusme" },
+  { value: "proposal", label: "Teklif" },
+  { value: "archived", label: "Arsiv" },
 ];
+
+const STAGE_FILTER_OPTIONS = [
+  { value: "all", label: "Tum Asamalar" },
+  ...API_STAGES,
+];
+
+// Stage -> Turkce label mapping
+export const STAGE_LABELS: Record<string, string> = {
+  to_contact: "Iletisim Kurulacak",
+  contacted: "Iletisim Kuruldu",
+  replied: "Cevap Alindi",
+  meeting: "Gorusme",
+  proposal: "Teklif",
+  archived: "Arsiv",
+};
 
 type StageVariant = "default" | "secondary" | "outline" | "destructive";
 
 const stageConfig: Record<string, { variant: StageVariant; className: string }> = {
-  "İletişim Kurulacak": { variant: "secondary", className: "bg-blue-100 text-blue-700 border-blue-200" },
-  "İletişim Kuruldu": { variant: "secondary", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  "Cevap Alındı": { variant: "secondary", className: "bg-orange-100 text-orange-700 border-orange-200" },
-  "Görüşme": { variant: "secondary", className: "bg-purple-100 text-purple-700 border-purple-200" },
-  "Teklif": { variant: "secondary", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  "Arşiv": { variant: "secondary", className: "bg-gray-100 text-gray-500 border-gray-200" },
+  to_contact: { variant: "secondary", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  contacted: { variant: "secondary", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  replied: { variant: "secondary", className: "bg-orange-100 text-orange-700 border-orange-200" },
+  meeting: { variant: "secondary", className: "bg-purple-100 text-purple-700 border-purple-200" },
+  proposal: { variant: "secondary", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  archived: { variant: "secondary", className: "bg-gray-100 text-gray-500 border-gray-200" },
 };
 
-interface Lead {
+// Siradaki asamalar
+const STAGE_ORDER = ["to_contact", "contacted", "replied", "meeting", "proposal", "archived"];
+
+export interface LeadData {
   id: string;
   name: string;
-  title: string;
-  company: string;
-  score: number;
+  title: string | null;
+  company: string | null;
+  linkedinUrl: string;
   stage: string;
-  lastActivity: string;
+  score: number;
+  scoreBreakdown: Record<string, number> | null;
+  painPoints: string[];
+  keyInterests: string[];
+  firstPostId: string | null;
   postCount: number;
+  isActive: boolean;
+  source: string;
+  profilePicture: string | null;
+  createdAt: string;
+  updatedAt: string;
+  firstPost?: {
+    content: string;
+    authorName: string;
+  } | null;
 }
-
-const demoLeads: Lead[] = [
-  { id: "1", name: "Ahmet Yılmaz", title: "İK Direktörü", company: "TechCorp Türkiye", score: 85, stage: "İletişim Kurulacak", lastActivity: "2 saat önce", postCount: 2 },
-  { id: "2", name: "Fatma Şahin", title: "Satın Alma Müdürü", company: "Global Lojistik A.Ş.", score: 78, stage: "İletişim Kurulacak", lastActivity: "5 saat önce", postCount: 1 },
-  { id: "3", name: "Ayşe Kaya", title: "Pazarlama Direktörü", company: "Mega Holding", score: 92, stage: "İletişim Kuruldu", lastActivity: "1 gün önce", postCount: 3 },
-  { id: "4", name: "Can Özdemir", title: "Genel Müdür", company: "Anadolu Gıda", score: 67, stage: "Cevap Alındı", lastActivity: "2 gün önce", postCount: 1 },
-  { id: "5", name: "Zeynep Arslan", title: "Kurumsal İletişim Md.", company: "Delta Enerji", score: 71, stage: "İletişim Kurulacak", lastActivity: "3 gün önce", postCount: 2 },
-  { id: "6", name: "Ali Çelik", title: "Operasyon Direktörü", company: "Star Otomotiv", score: 88, stage: "Görüşme", lastActivity: "1 gün önce", postCount: 1 },
-  { id: "7", name: "Deniz Yıldız", title: "CEO", company: "Yıldız Teknoloji", score: 95, stage: "Teklif", lastActivity: "6 saat önce", postCount: 4 },
-  { id: "8", name: "Murat Koç", title: "Satın Alma Uzmanı", company: "Koç Holding", score: 56, stage: "Arşiv", lastActivity: "1 hafta önce", postCount: 1 },
-];
 
 interface PipelineTableProps {
-  onSelectLead?: (leadId: string) => void;
+  leads: LeadData[];
+  loading: boolean;
+  onSelectLead?: (lead: LeadData) => void;
+  onStageChange?: (leadId: string, newStage: string) => void;
+  total: number;
+  page: number;
+  totalPages: number;
+  onPageChange?: (page: number) => void;
+  stageFilter: string;
+  onStageFilterChange?: (stage: string) => void;
+  searchQuery: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
-export function PipelineTable({ onSelectLead }: PipelineTableProps) {
-  const [stageFilter, setStageFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredLeads = demoLeads
-    .filter((lead) => stageFilter === "all" || lead.stage === stageFilter)
-    .filter(
-      (lead) =>
-        searchQuery === "" ||
-        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.company.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+export function PipelineTable({
+  leads,
+  loading,
+  onSelectLead,
+  onStageChange,
+  total,
+  page,
+  totalPages,
+  onPageChange,
+  stageFilter,
+  onStageFilterChange,
+  searchQuery,
+  onSearchQueryChange,
+}: PipelineTableProps) {
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "bg-emerald-100 text-emerald-700";
     if (score >= 60) return "bg-amber-100 text-amber-700";
     return "bg-red-100 text-red-700";
+  };
+
+  const getNextStage = (current: string) => {
+    const idx = STAGE_ORDER.indexOf(current);
+    if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+    return STAGE_ORDER[idx + 1];
+  };
+
+  const getPrevStage = (current: string) => {
+    const idx = STAGE_ORDER.indexOf(current);
+    if (idx <= 0) return null;
+    return STAGE_ORDER[idx - 1];
+  };
+
+  // Client-side arama filtresi (API'den gelen veriler uzerinde ek filtreleme)
+  const filteredLeads = leads.filter(
+    (lead) =>
+      searchQuery === "" ||
+      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (lead.company ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffHours < 1) return "Az once";
+    if (diffHours < 24) return `${diffHours} saat once`;
+    if (diffDays < 7) return `${diffDays} gun once`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} hafta once`;
+    return `${Math.floor(diffDays / 30)} ay once`;
   };
 
   return (
@@ -96,26 +163,26 @@ export function PipelineTable({ onSelectLead }: PipelineTableProps) {
           <div>
             <CardTitle className="text-sm font-medium">Lead Listesi</CardTitle>
             <CardDescription className="text-xs">
-              Toplam {filteredLeads.length} lead gösteriliyor
+              Toplam {total} lead{filteredLeads.length !== total ? ` (${filteredLeads.length} gosteriliyor)` : ""}
             </CardDescription>
           </div>
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="İsim veya şirket ara..."
+                placeholder="Isim veya sirket ara..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => onSearchQueryChange?.(e.target.value)}
                 className="pl-8 w-[200px] h-9"
               />
             </div>
-            <Select value={stageFilter} onValueChange={setStageFilter}>
+            <Select value={stageFilter} onValueChange={(v) => onStageFilterChange?.(v)}>
               <SelectTrigger className="w-[180px] h-9">
                 <Filter className="mr-2 h-3.5 w-3.5" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PIPELINE_STAGES.map((stage) => (
+                {STAGE_FILTER_OPTIONS.map((stage) => (
                   <SelectItem key={stage.value} value={stage.value}>
                     {stage.label}
                   </SelectItem>
@@ -131,70 +198,159 @@ export function PipelineTable({ onSelectLead }: PipelineTableProps) {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[250px]">Lead</TableHead>
-                <TableHead>Şirket</TableHead>
+                <TableHead>Sirket</TableHead>
                 <TableHead className="text-center">Skor</TableHead>
-                <TableHead>Aşama</TableHead>
-                <TableHead className="text-center">Gönderi</TableHead>
-                <TableHead>Son Aktivite</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead>Asama</TableHead>
+                <TableHead className="text-center">Gonderi</TableHead>
+                <TableHead>Guncelleme</TableHead>
+                <TableHead className="w-[100px] text-center">Tasi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLeads.map((lead) => {
-                const initials = lead.name
-                  .split(" ")
-                  .filter(Boolean)
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase();
-                const config = stageConfig[lead.stage] || stageConfig["Arşiv"];
-                return (
-                  <TableRow
-                    key={lead.id}
-                    className="cursor-pointer"
-                    onClick={() => onSelectLead?.(lead.id)}
-                  >
+              {loading ? (
+                // Loading skeleton
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={`skeleton-${i}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{lead.name}</p>
-                          <p className="text-xs text-muted-foreground">{lead.title}</p>
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-[120px]" />
+                          <Skeleton className="h-3 w-[80px]" />
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{lead.company}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={`font-mono text-xs ${getScoreColor(lead.score)}`}>
-                        {lead.score}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={config.variant} className={`text-xs ${config.className}`}>
-                        {lead.stage}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-muted-foreground">
-                      {lead.postCount}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {lead.lastActivity}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Seçenekler">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-[80px] mx-auto" /></TableCell>
                   </TableRow>
-                );
-              })}
+                ))
+              ) : filteredLeads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <FileText className="h-8 w-8 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">
+                        Henuz lead yok -- LinkedIn Arama sayfasindan postlari siniflandirin
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredLeads.map((lead) => {
+                  const initials = lead.name
+                    .split(" ")
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2);
+                  const config = stageConfig[lead.stage] || stageConfig["archived"];
+                  const nextStage = getNextStage(lead.stage);
+                  const prevStage = getPrevStage(lead.stage);
+
+                  return (
+                    <TableRow
+                      key={lead.id}
+                      className="cursor-pointer"
+                      onClick={() => onSelectLead?.(lead)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            {lead.profilePicture && (
+                              <AvatarImage src={lead.profilePicture} alt={lead.name} />
+                            )}
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{lead.name}</p>
+                            <p className="text-xs text-muted-foreground">{lead.title || "-"}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{lead.company || "-"}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`font-mono text-xs ${getScoreColor(lead.score)}`}>
+                          {lead.score}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={config.variant} className={`text-xs ${config.className}`}>
+                          {STAGE_LABELS[lead.stage] || lead.stage}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">
+                        {lead.postCount}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDate(lead.updatedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {prevStage && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title={`${STAGE_LABELS[prevStage]} asamasina tasi`}
+                              onClick={() => onStageChange?.(lead.id, prevStage)}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {nextStage && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title={`${STAGE_LABELS[nextStage]} asamasina tasi`}
+                              onClick={() => onStageChange?.(lead.id, nextStage)}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
+
+        {/* Sayfalama */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-xs text-muted-foreground">
+              Sayfa {page} / {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => onPageChange?.(page - 1)}
+              >
+                Onceki
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => onPageChange?.(page + 1)}
+              >
+                Sonraki
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
