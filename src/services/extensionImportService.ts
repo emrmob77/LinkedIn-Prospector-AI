@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExtensionPostData, ImportResult } from '@/types/extension';
+import { logActivity } from '@/services/activityLogService';
 
 // ============================================
 // Extension Import Service
@@ -33,7 +34,7 @@ export async function processExtensionImport(
   await finalizeSearchRun(supabase, searchRun.id, imported);
 
   // 4. Log the import activity
-  await logImportActivity(supabase, userId, searchRun.id, imported, duplicates);
+  await logImportActivity(supabase, userId, searchRun.id, imported, duplicates, pageUrl);
 
   return {
     searchRunId: searchRun.id,
@@ -224,22 +225,20 @@ async function logImportActivity(
   userId: string,
   searchRunId: string,
   imported: number,
-  duplicates: number
+  duplicates: number,
+  pageUrl: string
 ): Promise<void> {
-  const { error } = await supabase.from('activity_logs').insert({
-    action_type: 'extension_import',
-    user_id: userId,
-    is_system_action: false,
-    entity_type: 'search_run',
-    entity_id: searchRunId,
+  await logActivity({
+    supabase,
+    actionType: 'extension_import',
+    userId,
+    entityType: 'search_run',
+    entityId: searchRunId,
     details: {
       source: 'chrome_extension',
-      posts_imported: imported,
-      posts_duplicate: duplicates,
+      postsImported: imported,
+      postsDuplicate: duplicates,
+      pageUrl,
     },
   });
-
-  if (error) {
-    console.error('Failed to log import activity:', error.message);
-  }
 }

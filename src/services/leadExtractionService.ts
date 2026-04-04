@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Post, Lead, LeadSource } from '@/types/models';
 import type { PipelineStage } from '@/types/enums';
+import { logActivity } from '@/services/activityLogService';
 
 // ============================================
 // Tipler
@@ -262,24 +263,18 @@ export async function extractLeadFromPost(
     }
 
     // Activity log — lead_created
-    await supabase
-      .from('activity_logs')
-      .insert({
-        action_type: 'lead_created',
-        user_id: userId,
-        entity_type: 'lead',
-        entity_id: newLead.id,
-        details: {
-          name: post.authorName,
-          source: DEFAULT_SOURCE,
-          from_post_id: post.id,
-        },
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.error('Activity log kaydi hatasi:', error);
-        }
-      });
+    logActivity({
+      supabase,
+      actionType: 'lead_created',
+      userId,
+      entityType: 'lead',
+      entityId: newLead.id,
+      details: {
+        name: post.authorName,
+        source: DEFAULT_SOURCE,
+        from_post_id: post.id,
+      },
+    });
 
     return 'created';
   } catch (error) {

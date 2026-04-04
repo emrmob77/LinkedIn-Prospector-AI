@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { PIPELINE_STAGES, PipelineStage } from '@/types/enums';
+import { logActivity } from '@/services/activityLogService';
 
 export async function PATCH(
   request: NextRequest,
@@ -32,7 +33,7 @@ export async function PATCH(
     // Lead'in var olduğunu ve kullanıcıya ait olduğunu kontrol et
     const { data: existingLead, error: checkError } = await supabase
       .from('leads')
-      .select('id')
+      .select('id, stage, name')
       .eq('id', id)
       .eq('user_id', user.id)
       .single();
@@ -70,6 +71,20 @@ export async function PATCH(
         { status: 500 }
       );
     }
+
+    // Activity log — lead_stage_changed (fire-and-forget)
+    logActivity({
+      supabase,
+      actionType: 'lead_stage_changed',
+      userId: user.id,
+      entityType: 'lead',
+      entityId: id,
+      details: {
+        oldStage: existingLead.stage,
+        newStage: stage,
+        leadName: existingLead.name,
+      },
+    });
 
     // Map to camelCase
     const lead = {

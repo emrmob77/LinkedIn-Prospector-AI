@@ -7,6 +7,7 @@ import { extractLeadsBatch } from '@/services/leadExtractionService';
 import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Post } from '@/types/models';
+import { logActivity } from '@/services/activityLogService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -205,6 +206,20 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Activity log — post_classified (fire-and-forget)
+    logActivity({
+      supabase,
+      actionType: 'post_classified',
+      userId: user.id,
+      entityType: 'search_run',
+      entityId: searchRunId,
+      details: {
+        classified: result.classified,
+        relevant: result.relevant,
+        irrelevant: result.irrelevant,
+      },
+    });
 
     return NextResponse.json({
       classified: result.classified,
