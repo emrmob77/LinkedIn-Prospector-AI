@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
     let query = supabase
       .from('leads')
       .select('id, name, title, company, linkedin_url, stage, score, post_count, created_at')
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .order('score', { ascending: false });
 
