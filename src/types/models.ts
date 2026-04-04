@@ -27,7 +27,7 @@ export interface Post {
   scrapedAt: Date;
   rawHtml: string | null;
 
-  // Apify ek alanları
+  // Ek alanlar
   authorProfilePicture: string | null;
   authorFollowersCount: string | null;
   authorType: 'Person' | 'Company';
@@ -126,12 +126,7 @@ export interface SearchRun {
   errorMessage: string | null;
   retryCount: number;
 
-  // Apify alanları
-  apifyRunId: string | null;
-  apifyDatasetId: string | null;
   searchUrl: string | null;
-  dateFilter: DateFilter | null;
-  geoId: string | null;
 
   createdAt: Date;
   updatedAt: Date;

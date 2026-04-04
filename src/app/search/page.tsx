@@ -20,7 +20,7 @@ import {
 interface ImportHistoryItem {
   id: string;
   keywords: string[] | null;
-  source: "apify" | "chrome_extension";
+  source: string;
   pageUrl: string | null;
   status: string;
   postsFound: number;

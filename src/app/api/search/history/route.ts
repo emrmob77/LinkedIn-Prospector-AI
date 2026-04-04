@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (source && (source === 'chrome_extension' || source === 'apify')) {
+    if (source) {
       query = query.eq('source', source);
     }
 
