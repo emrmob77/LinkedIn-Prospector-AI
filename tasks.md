@@ -45,7 +45,31 @@ LinkedIn Prospector AI — Chrome Extension ile LinkedIn'den post yakalayan, AI 
 - ~~8. BullMQ iş kuyruğu~~ — Gereksiz karmaşıklık, senkron çalışma yeterli
 - ~~13. Arama API endpoint'leri~~ — Apify kaldırıldı, Chrome Extension birincil kaynak
 
-## Kalan İyileştirmeler (MVP Sonrası / Faz 2)
+## Faz 2 — Yeni Özellikler
+
+- [ ] 41. AI Görsel Analiz (Post görsellerinden ürün/marka tespiti)
+  - [ ] 41.1 DB migration: `posts` tablosuna `image_analysis` JSONB ve `image_analyzed_at` kolonu
+  - [ ] 41.2 AIClient'a `chatWithVision` metodu ekle (4 provider: Anthropic, OpenAI, Gemini, OpenRouter)
+    - Anthropic: base64 image content block
+    - OpenAI: image_url content block
+    - Google: inlineData parts
+    - OpenRouter: OpenAI uyumlu
+  - [ ] 41.3 Image analysis servisi oluştur (`src/services/imageAnalysisService.ts`)
+    - Prompt: firma bağlamına göre ürün/marka/etkinlik tespiti
+    - Sonuç: `{ products, brands, eventType, qualityAssessment, relevanceScore, relevanceSummary }`
+    - İlk görseli analiz et (max 3 görsel desteği)
+  - [ ] 41.4 API endpoint: `POST /api/posts/:id/analyze-image`
+    - LinkedIn CDN görsellerini server-side fetch → base64
+    - AI vision çağrısı
+    - Sonucu DB'ye kaydet (cache — 24 saat)
+    - "Tekrar Analiz Et" seçeneği
+  - [ ] 41.5 Post card UI: "AI Analiz" butonu + sonuç paneli
+    - Paylaş ikonunun yanına ScanEye butonu (sadece görseli olan postlarda)
+    - Sonuçlar: ürünler ve markalar badge olarak, etkinlik tipi, uygunluk skoru
+    - Loading state, cache gösterimi
+  - _Gereksinimler: Görsel içerik analizi, ürün tespiti, sektör uygunluk değerlendirmesi_
+
+## Kalan İyileştirmeler (Faz 2+)
 
 - [ ] Performans optimizasyonu (Redis cache, sorgu optimizasyonu)
 - [ ] Lead-post referans bütünlüğü kontrolleri
