@@ -229,15 +229,15 @@ Bu görev listesi MVP özelliklerini kapsar:
     - _Gereksinimler: 20.1, 20.2, 20.6_
 
 
-- [ ] 10. Potansiyel müşteri çıkarma ve yineleme gidermeyi uygula
-  - [ ] 10.1 Potansiyel müşteri çıkarma fonksiyonu oluştur
+- [x] 10. Potansiyel müşteri çıkarma ve yineleme gidermeyi uygula
+  - [x] 10.1 Potansiyel müşteri çıkarma fonksiyonu oluştur
     - Sınıflandırılmış gönderilerden potansiyel müşteri bilgisini çıkar (ad, unvan, şirket, LinkedIn URL)
     - Varsayılan aşama "İletişim Kurulacak" ile potansiyel müşteri kaydı oluştur
     - lead_posts bağlantı tablosu üzerinden potansiyel müşteriyi kaynak gönderiye bağla
     - AI tarafından oluşturulan puanı ve sorun noktalarını sakla
     - _Gereksinimler: 3.1, 3.4, 4.2_
   
-  - [ ] 10.2 Yineleme giderme servisini uygula
+  - [x] 10.2 Yineleme giderme servisini uygula
     - Yeni potansiyel müşteri oluşturmadan önce linkedin_url'ye göre mevcut potansiyel müşteriyi kontrol et
     - Yineleme bulunursa, yeni gönderiyi mevcut potansiyel müşteriye bağla
     - Yeni puan daha yüksekse potansiyel müşteri puanını güncelle
@@ -320,8 +320,8 @@ Bu görev listesi MVP özelliklerini kapsar:
     - _Gereksinimler: 15.1, 10.6_
 
 
-- [ ] 14. Potansiyel müşteri yönetimi için API endpoint'leri oluştur
-  - [ ] 14.1 GET /api/leads endpoint'ini uygula
+- [x] 14. Potansiyel müşteri yönetimi için API endpoint'leri oluştur
+  - [x] 14.1 GET /api/leads endpoint'ini uygula
     - Sayfalandırılmış potansiyel müşteri listesi döndür (sayfa başına 50)
     - Aşama, minScore, tarih aralığına göre filtrelemeyi destekle
     - Puan, created_at'e göre sıralamayı destekle
@@ -329,14 +329,14 @@ Bu görev listesi MVP özelliklerini kapsar:
     - Yalnızca kimliği doğrulanmış kullanıcı için potansiyel müşterileri döndür
     - _Gereksinimler: 4.4, 4.5, 16.2, 10.6_
   
-  - [ ] 14.2 GET /api/leads/:id endpoint'ini uygula
+  - [x] 14.2 GET /api/leads/:id endpoint'ini uygula
     - Detaylı potansiyel müşteri bilgisini döndür
     - lead_posts bağlantısı üzerinden tüm ilişkili gönderileri dahil et
     - Potansiyel müşteri için tüm mesajları dahil et
     - Potansiyel müşteri bulunamazsa veya farklı kullanıcıya aitse 404 döndür
     - _Gereksinimler: 13.3, 10.6_
   
-  - [ ] 14.3 PATCH /api/leads/:id/stage endpoint'ini uygula
+  - [x] 14.3 PATCH /api/leads/:id/stage endpoint'ini uygula
     - Yeni aşamanın geçerli bir PipelineStage değeri olduğunu doğrula
     - Veritabanında potansiyel müşteri aşamasını güncelle
     - Eski ve yeni aşama ile lead_stage_changed aktivitesini kaydet
@@ -544,8 +544,8 @@ Bu görev listesi MVP özelliklerini kapsar:
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1_
 
 
-- [ ] 22. Frontend oluştur: İletişim Hattı sayfası
-  - [ ] 22.1 Create pipeline table and lead detail components
+- [x] 22. Frontend oluştur: İletişim Hattı sayfası
+  - [x] 22.1 Create pipeline table and lead detail components
     - Create PipelineTable component with columns for each stage
     - Create StageColumn component displaying leads in each stage
     - Create LeadDetailPanel component showing lead info, posts, and messages
@@ -553,7 +553,7 @@ Bu görev listesi MVP özelliklerini kapsar:
     - Add "Generate Message" button in lead detail panel
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
   
-  - [ ] 22.2 Integrate pipeline page with API
+  - [x] 22.2 Integrate pipeline page with API
     - Fetch leads from GET /api/leads with stage grouping
     - Implement stage change via PATCH /api/leads/:id/stage
     - Fetch lead details from GET /api/leads/:id
@@ -625,8 +625,8 @@ Bu görev listesi MVP özelliklerini kapsar:
     - _Requirements: 12.1, 12.2, 12.5_
 
 
-- [ ] 26. Yapılandırma yönetimini uygula
-  - [ ] 26.1 Create configuration service
+- [x] 26. Yapılandırma yönetimini uygula
+  - [x] 26.1 Create configuration service
     - Load configuration from environment variables
     - Support max_posts, AI temperature, model name, rate limits, score thresholds
     - Provide getter functions for each config value
@@ -884,6 +884,15 @@ Bu görev listesi MVP özelliklerini kapsar:
 
 - [ ] 39. Son kontrol noktası - Tüm testlerin geçtiğinden ve MVP'nin tamamlandığından emin ol
   - Ensure all tests pass, ask the user if questions arise.
+
+
+- [ ] 40. Import sonrası otomatik AI sınıflandırma
+  - [ ] 40.1 Extension import tamamlandıktan sonra otomatik sınıflandırma tetikle
+    - Kullanıcı ayarlarından `auto_classify` kontrolü yap
+    - Import API response'unda sınıflandırma başlatıldı bilgisi dön
+    - Sınıflandırma tamamlandığında lead extraction da otomatik çalışsın
+    - Frontend'de import sonrası "Sınıflandırılıyor..." durumu göster
+    - _Gereksinimler: 2.1, 3.1_
 
 
 ## Notlar
