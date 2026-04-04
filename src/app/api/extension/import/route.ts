@@ -317,17 +317,3 @@ async function runAutoClassification(
   };
 }
 
-function validatePosts(posts: ExtensionPostData[]): string[] {
-  const errors: string[] = [];
-
-  posts.forEach((post, index) => {
-    if (!post.authorName) {
-      errors.push(`posts[${index}]: authorName is required`);
-    }
-    if (!post.content && !post.authorName) {
-      errors.push(`posts[${index}]: content or authorName is required`);
-    }
-  });
-
-  return errors;
-}
