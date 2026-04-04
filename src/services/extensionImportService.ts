@@ -55,6 +55,19 @@ async function createSearchRun(
   pageUrl: string,
   totalPosts: number
 ): Promise<{ id: string }> {
+  // Idempotency: son 60sn içinde aynı page_url ile oluşturulmuş search_run varsa onu kullan
+  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+  const { data: existing } = await supabase
+    .from('search_runs')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('page_url', pageUrl)
+    .gte('created_at', oneMinuteAgo)
+    .limit(1)
+    .single();
+
+  if (existing) return existing;
+
   const { data, error } = await supabase
     .from('search_runs')
     .insert({
