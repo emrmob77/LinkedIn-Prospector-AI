@@ -23,44 +23,44 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Filter, ChevronRight, ChevronLeft, FileText } from "lucide-react";
 
-// API stage degerleri (veritabanindaki enum)
+// DB'deki stage değerleri (Türkçe)
 const API_STAGES = [
-  { value: "to_contact", label: "Iletisim Kurulacak" },
-  { value: "contacted", label: "Iletisim Kuruldu" },
-  { value: "replied", label: "Cevap Alindi" },
-  { value: "meeting", label: "Gorusme" },
-  { value: "proposal", label: "Teklif" },
-  { value: "archived", label: "Arsiv" },
+  { value: "İletişim Kurulacak", label: "İletişim Kurulacak" },
+  { value: "İletişim Kuruldu", label: "İletişim Kuruldu" },
+  { value: "Cevap Alındı", label: "Cevap Alındı" },
+  { value: "Görüşme", label: "Görüşme" },
+  { value: "Teklif", label: "Teklif" },
+  { value: "Arşiv", label: "Arşiv" },
 ];
 
 const STAGE_FILTER_OPTIONS = [
-  { value: "all", label: "Tum Asamalar" },
+  { value: "all", label: "Tüm Aşamalar" },
   ...API_STAGES,
 ];
 
-// Stage -> Turkce label mapping
+// Stage -> Label mapping (DB değerleri zaten Türkçe)
 export const STAGE_LABELS: Record<string, string> = {
-  to_contact: "Iletisim Kurulacak",
-  contacted: "Iletisim Kuruldu",
-  replied: "Cevap Alindi",
-  meeting: "Gorusme",
-  proposal: "Teklif",
-  archived: "Arsiv",
+  "İletişim Kurulacak": "İletişim Kurulacak",
+  "İletişim Kuruldu": "İletişim Kuruldu",
+  "Cevap Alındı": "Cevap Alındı",
+  "Görüşme": "Görüşme",
+  "Teklif": "Teklif",
+  "Arşiv": "Arşiv",
 };
 
 type StageVariant = "default" | "secondary" | "outline" | "destructive";
 
 const stageConfig: Record<string, { variant: StageVariant; className: string }> = {
-  to_contact: { variant: "secondary", className: "bg-blue-100 text-blue-700 border-blue-200" },
-  contacted: { variant: "secondary", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  replied: { variant: "secondary", className: "bg-orange-100 text-orange-700 border-orange-200" },
-  meeting: { variant: "secondary", className: "bg-purple-100 text-purple-700 border-purple-200" },
-  proposal: { variant: "secondary", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  archived: { variant: "secondary", className: "bg-gray-100 text-gray-500 border-gray-200" },
+  "İletişim Kurulacak": { variant: "secondary", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  "İletişim Kuruldu": { variant: "secondary", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  "Cevap Alındı": { variant: "secondary", className: "bg-orange-100 text-orange-700 border-orange-200" },
+  "Görüşme": { variant: "secondary", className: "bg-purple-100 text-purple-700 border-purple-200" },
+  "Teklif": { variant: "secondary", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  "Arşiv": { variant: "secondary", className: "bg-gray-100 text-gray-500 border-gray-200" },
 };
 
-// Siradaki asamalar
-const STAGE_ORDER = ["to_contact", "contacted", "replied", "meeting", "proposal", "archived"];
+// Sıradaki aşamalar
+const STAGE_ORDER = ["İletişim Kurulacak", "İletişim Kuruldu", "Cevap Alındı", "Görüşme", "Teklif", "Arşiv"];
 
 export interface LeadData {
   id: string;
@@ -248,7 +248,7 @@ export function PipelineTable({
                     .join("")
                     .toUpperCase()
                     .slice(0, 2);
-                  const config = stageConfig[lead.stage] || stageConfig["archived"];
+                  const config = stageConfig[lead.stage] || stageConfig["Arşiv"];
                   const nextStage = getNextStage(lead.stage);
                   const prevStage = getPrevStage(lead.stage);
 

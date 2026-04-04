@@ -30,12 +30,12 @@ import { LinkedinIcon } from "@/components/icons";
 import { type LeadData } from "./pipeline-table";
 
 const API_STAGES = [
-  { value: "to_contact", label: "Iletisim Kurulacak" },
-  { value: "contacted", label: "Iletisim Kuruldu" },
-  { value: "replied", label: "Cevap Alindi" },
-  { value: "meeting", label: "Gorusme" },
-  { value: "proposal", label: "Teklif" },
-  { value: "archived", label: "Arsiv" },
+  { value: "İletişim Kurulacak", label: "İletişim Kurulacak" },
+  { value: "İletişim Kuruldu", label: "İletişim Kuruldu" },
+  { value: "Cevap Alındı", label: "Cevap Alındı" },
+  { value: "Görüşme", label: "Görüşme" },
+  { value: "Teklif", label: "Teklif" },
+  { value: "Arşiv", label: "Arşiv" },
 ];
 
 interface LeadDetailPanelProps {

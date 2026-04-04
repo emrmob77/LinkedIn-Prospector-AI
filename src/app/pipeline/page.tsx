@@ -10,12 +10,12 @@ import { Download, Users, BarChart3, AlertCircle } from "lucide-react";
 
 // Stage renk ve stil konfigurasyonu
 const STAGE_CONFIG = [
-  { key: "to_contact", label: "Iletisim Kurulacak", color: "bg-blue-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", textColor: "text-blue-700 dark:text-blue-300" },
-  { key: "contacted", label: "Iletisim Kuruldu", color: "bg-yellow-500", bgLight: "bg-yellow-50 dark:bg-yellow-950/30", textColor: "text-yellow-700 dark:text-yellow-300" },
-  { key: "replied", label: "Cevap Alindi", color: "bg-orange-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", textColor: "text-orange-700 dark:text-orange-300" },
-  { key: "meeting", label: "Gorusme", color: "bg-purple-500", bgLight: "bg-purple-50 dark:bg-purple-950/30", textColor: "text-purple-700 dark:text-purple-300" },
-  { key: "proposal", label: "Teklif", color: "bg-emerald-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", textColor: "text-emerald-700 dark:text-emerald-300" },
-  { key: "archived", label: "Arsiv", color: "bg-gray-400", bgLight: "bg-gray-50 dark:bg-gray-900/30", textColor: "text-gray-500 dark:text-gray-400" },
+  { key: "İletişim Kurulacak", label: "İletişim Kurulacak", color: "bg-blue-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", textColor: "text-blue-700 dark:text-blue-300" },
+  { key: "İletişim Kuruldu", label: "İletişim Kuruldu", color: "bg-yellow-500", bgLight: "bg-yellow-50 dark:bg-yellow-950/30", textColor: "text-yellow-700 dark:text-yellow-300" },
+  { key: "Cevap Alındı", label: "Cevap Alındı", color: "bg-orange-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", textColor: "text-orange-700 dark:text-orange-300" },
+  { key: "Görüşme", label: "Görüşme", color: "bg-purple-500", bgLight: "bg-purple-50 dark:bg-purple-950/30", textColor: "text-purple-700 dark:text-purple-300" },
+  { key: "Teklif", label: "Teklif", color: "bg-emerald-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", textColor: "text-emerald-700 dark:text-emerald-300" },
+  { key: "Arşiv", label: "Arşiv", color: "bg-gray-400", bgLight: "bg-gray-50 dark:bg-gray-900/30", textColor: "text-gray-500 dark:text-gray-400" },
 ];
 
 interface StatsData {
