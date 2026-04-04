@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { classifyPostsBatch } from '@/services/aiClassificationService';
 import type { BusinessContext } from '@/services/aiClassificationService';
+import { extractLeadsBatch } from '@/services/leadExtractionService';
 import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Post } from '@/types/models';
@@ -144,10 +145,73 @@ export async function POST(request: NextRequest) {
         .eq('id', searchRunId);
     }
 
+    // --- Lead extraction: ilgili postlardan lead cikar ---
+    let leadsCreated = 0;
+    let leadsUpdated = 0;
+
+    if (result.relevant > 0) {
+      // DB'den siniflandirilmis ve relevant postlari cek
+      // (classifyPostsBatch DB'yi gunceller, typedPosts'ta yansimaz)
+      const postIdsToCheck = typedPosts.map((p) => p.id);
+      const { data: classifiedRows } = await supabase
+        .from('posts')
+        .select('*')
+        .in('id', postIdsToCheck)
+        .eq('is_relevant', true);
+
+      if (classifiedRows && classifiedRows.length > 0) {
+        const relevantPosts: Post[] = classifiedRows.map((row) => ({
+          id: row.id,
+          searchRunId: row.search_run_id,
+          content: row.content,
+          authorName: row.author_name,
+          authorTitle: row.author_title,
+          authorCompany: row.author_company,
+          authorLinkedinUrl: row.author_linkedin_url,
+          linkedinPostUrl: row.linkedin_post_url,
+          engagementLikes: row.engagement_likes ?? 0,
+          engagementComments: row.engagement_comments ?? 0,
+          engagementShares: row.engagement_shares ?? 0,
+          publishedAt: new Date(row.published_at),
+          scrapedAt: new Date(row.scraped_at || row.created_at),
+          rawHtml: row.raw_html,
+          authorProfilePicture: row.author_profile_picture,
+          authorFollowersCount: row.author_followers_count,
+          authorType: row.author_type || 'Person',
+          images: row.images || [],
+          linkedinUrn: row.linkedin_urn,
+          rawJson: row.raw_json,
+          isRelevant: row.is_relevant,
+          relevanceConfidence: row.relevance_confidence,
+          theme: row.theme,
+          giftType: row.gift_type,
+          competitor: row.competitor,
+          classificationReasoning: row.classification_reasoning,
+          classifiedAt: row.classified_at ? new Date(row.classified_at) : null,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        }));
+
+        const leadResult = await extractLeadsBatch(relevantPosts, supabase, user.id);
+        leadsCreated = leadResult.created;
+        leadsUpdated = leadResult.updated;
+
+        // searchRunId varsa leads_extracted alanini guncelle
+        if (searchRunId) {
+          await supabase
+            .from('search_runs')
+            .update({ leads_extracted: leadsCreated + leadsUpdated })
+            .eq('id', searchRunId);
+        }
+      }
+    }
+
     return NextResponse.json({
       classified: result.classified,
       relevant: result.relevant,
       irrelevant: result.irrelevant,
+      leadsCreated,
+      leadsUpdated,
     });
   } catch (error) {
     console.error('Siniflandirma API hatasi:', error);
