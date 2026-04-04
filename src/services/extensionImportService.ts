@@ -33,14 +33,21 @@ export async function processExtensionImport(
   // 3. Update search_run with final counts
   await finalizeSearchRun(supabase, searchRun.id, imported);
 
-  // 4. Log the import activity
-  await logImportActivity(supabase, userId, searchRun.id, imported, duplicates, pageUrl);
+  // 4. 0 post import edildiyse search_run'ı sil (boş kayıt oluşmasın)
+  if (imported === 0) {
+    await supabase.from('search_runs').delete().eq('id', searchRun.id);
+  }
+
+  // 5. Log the import activity
+  if (imported > 0) {
+    await logImportActivity(supabase, userId, searchRun.id, imported, duplicates, pageUrl);
+  }
 
   return {
     searchRunId: searchRun.id,
     postsImported: imported,
     postsDuplicate: duplicates,
-    leadCandidatesCount: 0, // Lead extraction happens in a separate step
+    leadCandidatesCount: 0,
   };
 }
 

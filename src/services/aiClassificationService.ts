@@ -155,12 +155,22 @@ async function callAI(
  * JSON string'i parse eder. Markdown code block icindeyse temizler.
  */
 function parseJsonResponse<T>(text: string): T {
-  // Claude bazen ```json ... ``` ile sarar
   let cleaned = text.trim();
+  // Markdown code block temizle
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
   }
-  return JSON.parse(cleaned) as T;
+  // JSON bloğunu bul (bazen AI önüne/arkasına metin ekliyor)
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleaned = jsonMatch[0];
+  }
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    console.error('AI yanıtı JSON parse edilemedi:', text.slice(0, 200));
+    throw new Error('AI yanıtı geçerli JSON formatında değil');
+  }
 }
 
 function sleep(ms: number): Promise<void> {
