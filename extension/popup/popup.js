@@ -8,7 +8,11 @@
   'use strict';
 
   // ---- Sabitler ----
-  var APP_URL = 'https://linked-in-prospector-ai.vercel.app';
+  var ENVIRONMENTS = {
+    production: 'https://linked-in-prospector-ai.vercel.app',
+    local: 'http://localhost:3000'
+  };
+  var APP_URL = ENVIRONMENTS.production; // varsayılan, init'te güncellenir
   var TOAST_DURATION = 4000;
 
   // Sayfa tipi eslemeleri: { regex/test, label, badgeClass }
@@ -405,7 +409,7 @@
         action: 'IMPORT_POSTS',
         posts: state.scannedPosts,
         pageUrl: pageUrl,
-        source: pageType.label,
+        source: 'chrome_extension',
       });
 
       showProgress(80, 'Sunucu yaniti isleniyor...');
