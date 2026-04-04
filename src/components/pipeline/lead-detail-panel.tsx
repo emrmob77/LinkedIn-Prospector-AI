@@ -28,6 +28,7 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  Copy,
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
 import { type LeadData } from "./pipeline-table";
@@ -369,6 +370,21 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange }: LeadDeta
                       <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" onClick={() => handleRejectMessage(msg.id)}>
                         <XCircle className="mr-1 h-3 w-3" />Reddet
                       </Button>
+                    </div>
+                  )}
+                  {msg.status === "approved" && (
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1"
+                        onClick={() => { navigator.clipboard.writeText(msg.body); }}>
+                        <Copy className="mr-1 h-3 w-3" />Kopyala
+                      </Button>
+                      {lead.linkedinUrl && msg.messageType === "dm" && (
+                        <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" asChild>
+                          <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1 h-3 w-3" />LinkedIn
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
