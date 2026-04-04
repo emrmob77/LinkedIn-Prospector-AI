@@ -201,13 +201,8 @@ export async function classifyPost(post: Post, client: AIClient, ctx: BusinessCo
     };
   } catch (error) {
     console.error('Post siniflandirma hatasi:', error, { postId: post.id });
-    // Hata durumunda fallback deger
-    return {
-      isRelevant: false,
-      confidence: 0,
-      theme: 'siniflandirma_hatasi',
-      reasoning: `Siniflandirma sirasinda hata olustu: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
-    };
+    // Hata durumunda null döndür — post sınıflandırılmamış kalır, tekrar denenebilir
+    throw error;
   }
 }
 

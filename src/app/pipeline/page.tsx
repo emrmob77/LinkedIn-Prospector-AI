@@ -177,7 +177,23 @@ export default function PipelinePage() {
             {scoring ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Target className="mr-2 h-3.5 w-3.5" />}
             {scoring ? "Puanlanıyor..." : "Lead Puanla"}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const res = await fetch("/api/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ format: "csv" }),
+              });
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `leads-${Date.now()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch {}
+          }}>
             <Download className="mr-2 h-3.5 w-3.5" />
             Dışa Aktar
           </Button>
