@@ -87,10 +87,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate each post has minimum required fields
-    const validationErrors = validatePosts(posts);
-    if (validationErrors.length > 0) {
+    // authorName boş olan postları filtrele (hata vermek yerine atla)
+    const validPosts = posts.filter((post: ExtensionPostData) =>
+      post.authorName && post.authorName.trim().length > 0
+    );
+
+    if (validPosts.length === 0) {
       return NextResponse.json(
-        { error: 'Invalid post data', details: validationErrors },
+        { error: 'Geçerli post bulunamadı. Postlarda yazar bilgisi eksik.' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
@@ -103,13 +107,15 @@ export async function POST(request: NextRequest) {
         source: source || 'chrome_extension',
         pageUrl: pageUrl.trim(),
       },
-      posts
+      validPosts
     );
 
     // Map result fields to match what the extension expects
+    const skippedCount = posts.length - validPosts.length;
     const response: Record<string, unknown> = {
       ...result,
       importedCount: result.postsImported,
+      skippedInvalid: skippedCount,
       duplicateCount: result.postsDuplicate,
       leadCount: result.leadCandidatesCount,
       message: `${result.postsImported} post basariyla aktarildi.`,
