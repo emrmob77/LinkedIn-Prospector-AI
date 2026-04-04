@@ -225,7 +225,17 @@ export default function SearchPage() {
           </div>
         )}
 
-        {posts.length > 0 && <SearchResults posts={posts} />}
+        {posts.length > 0 && (
+          <SearchResults
+            posts={posts}
+            searchRunId={activeRunId}
+            onClassifyComplete={() => {
+              if (activeRunId) {
+                loadRunPosts(activeRunId);
+              }
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );

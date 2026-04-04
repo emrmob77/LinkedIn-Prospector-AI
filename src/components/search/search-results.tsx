@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import {
   Card,
@@ -26,12 +26,22 @@ import {
   Share2,
   ExternalLink,
   Building2,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 type ViewMode = "2" | "3" | "4" | "list";
 
+interface ClassifyResult {
+  classified: number;
+  relevant: number;
+  irrelevant: number;
+}
+
 interface SearchResultsProps {
   posts: PostCardData[];
+  searchRunId?: string | null;
+  onClassifyComplete?: (result: ClassifyResult) => void;
 }
 
 const viewModeOptions: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
@@ -134,17 +144,24 @@ function ListItem({ post }: { post: PostCardData }) {
             {post.authorType === "Company" && (
               <Building2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
             )}
-            {post.isRelevant !== null && post.isRelevant !== undefined && (
-              <Badge
-                className={`text-[10px] px-1.5 py-0 ml-1 ${
-                  post.isRelevant
-                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+            <Badge
+              className={`text-[10px] px-1.5 py-0 ml-1 ${
+                post.isRelevant === true
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+                  : post.isRelevant === false
+                    ? "bg-red-500 hover:bg-red-600 text-white border-0"
                     : "bg-gray-200 text-gray-600 border-0"
-                }`}
-              >
-                {post.isRelevant ? "Ilgili" : "Ilgisiz"}
-              </Badge>
-            )}
+              }`}
+            >
+              {post.isRelevant === true
+                ? "Ilgili"
+                : post.isRelevant === false
+                  ? "Ilgisiz"
+                  : "Siniflandirilmadi"}
+              {post.relevanceConfidence != null &&
+                post.isRelevant != null &&
+                ` %${post.relevanceConfidence}`}
+            </Badge>
             {post.theme && (
               <Badge
                 variant="outline"
@@ -194,16 +211,51 @@ function ListItem({ post }: { post: PostCardData }) {
   );
 }
 
-export function SearchResults({ posts }: SearchResultsProps) {
+export function SearchResults({ posts, searchRunId, onClassifyComplete }: SearchResultsProps) {
   const [showIrrelevant, setShowIrrelevant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("3");
+  const [classifying, setClassifying] = useState(false);
+  const [classifyMessage, setClassifyMessage] = useState<string | null>(null);
 
   const filteredPosts = showIrrelevant
     ? posts
     : posts.filter((p) => p.isRelevant !== false);
 
   const relevantCount = posts.filter((p) => p.isRelevant === true).length;
+  const classifiedCount = posts.filter((p) => p.isRelevant !== null && p.isRelevant !== undefined).length;
+  const allClassified = classifiedCount === posts.length && posts.length > 0;
   const totalCount = posts.length;
+
+  const handleClassify = useCallback(async () => {
+    if (!searchRunId || classifying) return;
+    setClassifying(true);
+    setClassifyMessage(null);
+
+    try {
+      const res = await fetch("/api/posts/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchRunId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `Hata: ${res.status}`);
+      }
+
+      const result: ClassifyResult = await res.json();
+      setClassifyMessage(
+        `${result.classified} post siniflandirildi, ${result.relevant} ilgili bulundu`
+      );
+      onClassifyComplete?.(result);
+    } catch (err) {
+      setClassifyMessage(
+        err instanceof Error ? err.message : "Siniflandirma hatasi"
+      );
+    } finally {
+      setClassifying(false);
+    }
+  }, [searchRunId, classifying, onClassifyComplete]);
 
   return (
     <Card>
@@ -220,6 +272,34 @@ export function SearchResults({ posts }: SearchResultsProps) {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {/* AI Siniflandirma butonu */}
+            {searchRunId && (
+              <Button
+                variant={allClassified ? "outline" : "default"}
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleClassify}
+                disabled={classifying || allClassified}
+              >
+                {classifying ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Siniflandiriliyor...
+                  </>
+                ) : allClassified ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    Siniflandirildi
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI ile Siniflandir
+                  </>
+                )}
+              </Button>
+            )}
+
             {/* View mode toggle */}
             <div className="flex items-center border rounded-md overflow-hidden">
               {viewModeOptions.map((opt) => (
@@ -269,6 +349,12 @@ export function SearchResults({ posts }: SearchResultsProps) {
           </div>
         </div>
       </CardHeader>
+      {classifyMessage && (
+        <div className="mx-6 mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          {classifyMessage}
+        </div>
+      )}
       <CardContent className="pt-0">
         {viewMode === "list" ? (
           <div className="flex flex-col gap-2">

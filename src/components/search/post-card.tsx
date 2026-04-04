@@ -106,43 +106,53 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
             </div>
           )}
           {/* İlgililik rozeti — görsel üstünde */}
-          {post.isRelevant !== null && post.isRelevant !== undefined && (
-            <div className="absolute top-1.5 left-1.5">
-              <Badge
-                className={`text-[10px] px-1.5 py-0 ${
-                  post.isRelevant
-                    ? "bg-emerald-500/90 hover:bg-emerald-600 text-white border-0"
-                    : "bg-gray-500/70 text-white border-0"
-                }`}
-              >
-                {post.isRelevant ? "İlgili" : "İlgisiz"}
-                {post.relevanceConfidence != null &&
-                  ` %${post.relevanceConfidence}`}
-              </Badge>
-            </div>
-          )}
+          <div className="absolute top-1.5 left-1.5">
+            <Badge
+              className={`text-[10px] px-1.5 py-0 ${
+                post.isRelevant === true
+                  ? "bg-emerald-500/90 hover:bg-emerald-600 text-white border-0"
+                  : post.isRelevant === false
+                    ? "bg-red-500/80 hover:bg-red-600 text-white border-0"
+                    : "bg-gray-400/70 text-white border-0"
+              }`}
+            >
+              {post.isRelevant === true
+                ? "İlgili"
+                : post.isRelevant === false
+                  ? "İlgisiz"
+                  : "Sınıflandırılmadı"}
+              {post.relevanceConfidence != null &&
+                post.isRelevant != null &&
+                ` %${post.relevanceConfidence}`}
+            </Badge>
+          </div>
         </a>
       )}
 
       <div className="p-2">
         {/* İlgililik rozeti — görselsiz kartlar için */}
-        {post.images.length === 0 &&
-          post.isRelevant !== null &&
-          post.isRelevant !== undefined && (
-            <div className="mb-2">
-              <Badge
-                className={`text-[10px] px-1.5 py-0 ${
-                  post.isRelevant
-                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+        {post.images.length === 0 && (
+          <div className="mb-2">
+            <Badge
+              className={`text-[10px] px-1.5 py-0 ${
+                post.isRelevant === true
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+                  : post.isRelevant === false
+                    ? "bg-red-500 hover:bg-red-600 text-white border-0"
                     : "bg-gray-200 text-gray-600 border-0"
-                }`}
-              >
-                {post.isRelevant ? "İlgili" : "İlgisiz"}
-                {post.relevanceConfidence != null &&
-                  ` %${post.relevanceConfidence}`}
-              </Badge>
-            </div>
-          )}
+              }`}
+            >
+              {post.isRelevant === true
+                ? "İlgili"
+                : post.isRelevant === false
+                  ? "İlgisiz"
+                  : "Sınıflandırılmadı"}
+              {post.relevanceConfidence != null &&
+                post.isRelevant != null &&
+                ` %${post.relevanceConfidence}`}
+            </Badge>
+          </div>
+        )}
 
         {/* Yazar */}
         <div className="flex items-center gap-2 mb-2">
