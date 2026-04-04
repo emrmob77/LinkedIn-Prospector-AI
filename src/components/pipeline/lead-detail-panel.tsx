@@ -25,6 +25,9 @@ import {
   Briefcase,
   Target,
   FileText,
+  Loader2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
 import { type LeadData } from "./pipeline-table";
@@ -48,10 +51,60 @@ interface LeadDetailPanelProps {
 export function LeadDetailPanel({ open, onClose, lead, onStageChange }: LeadDetailPanelProps) {
   const [currentStage, setCurrentStage] = useState(lead?.stage ?? "");
   const [saving, setSaving] = useState(false);
+  const [generatingMessage, setGeneratingMessage] = useState(false);
+  const [messages, setMessages] = useState<Array<{
+    id: string; messageType: string; subject: string | null; body: string; status: string;
+  }>>([]);
+  const [messageError, setMessageError] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentStage(lead?.stage ?? "");
+    setMessages([]);
+    setMessageError(null);
+    if (lead?.id) {
+      fetch(`/api/leads/${lead.id}/messages`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => { if (data?.messages) setMessages(data.messages); })
+        .catch(() => {});
+    }
   }, [lead?.id, lead?.stage]);
+
+  const handleGenerateMessage = async () => {
+    if (!lead) return;
+    setGeneratingMessage(true);
+    setMessageError(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/generate-message`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Mesaj oluşturulamadı");
+      }
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch (err) {
+      setMessageError(err instanceof Error ? err.message : "Beklenmeyen hata");
+    } finally {
+      setGeneratingMessage(false);
+    }
+  };
+
+  const handleApproveMessage = async (msgId: string) => {
+    try {
+      const res = await fetch(`/api/messages/${msgId}/approve`, { method: "POST" });
+      if (res.ok) {
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: "approved" } : m));
+      }
+    } catch {}
+  };
+
+  const handleRejectMessage = async (msgId: string) => {
+    try {
+      const res = await fetch(`/api/messages/${msgId}/reject`, { method: "POST" });
+      if (res.ok) {
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: "rejected" } : m));
+      }
+    } catch {}
+  };
 
   if (!lead) return null;
 
@@ -257,20 +310,69 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange }: LeadDeta
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium flex items-center gap-1">
                 <MessageSquare className="h-4 w-4" />
-                Mesaj Olustur
+                Mesajlar
               </p>
             </div>
             <div className="space-y-3">
-              <Button className="w-full">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                AI ile Mesaj Olustur
+              <Button
+                className="w-full"
+                onClick={handleGenerateMessage}
+                disabled={generatingMessage}
+              >
+                {generatingMessage ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Mesaj Oluşturuluyor...</>
+                ) : (
+                  <><MessageSquare className="mr-2 h-4 w-4" />AI ile Mesaj Oluştur</>
+                )}
               </Button>
 
-              <div className="rounded-md border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground text-center">
-                  Mesaj olusturmak icin yukaridaki butona tiklayin
-                </p>
-              </div>
+              {messageError && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                  {messageError}
+                </div>
+              )}
+
+              {messages.length === 0 && !generatingMessage && !messageError && (
+                <div className="rounded-md border bg-muted/30 p-4">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Mesaj oluşturmak için yukarıdaki butona tıklayın
+                  </p>
+                </div>
+              )}
+
+              {messages.map((msg) => (
+                <div key={msg.id} className="rounded-md border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-[10px]">
+                      {msg.messageType === "dm" ? "LinkedIn DM" : "E-posta"}
+                    </Badge>
+                    <Badge
+                      className={`text-[10px] ${
+                        msg.status === "approved" ? "bg-emerald-500 text-white" :
+                        msg.status === "rejected" ? "bg-red-500 text-white" :
+                        "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {msg.status === "approved" ? "Onaylandı" :
+                       msg.status === "rejected" ? "Reddedildi" : "Onay Bekliyor"}
+                    </Badge>
+                  </div>
+                  {msg.subject && (
+                    <p className="text-xs font-medium">Konu: {msg.subject}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground whitespace-pre-line">{msg.body}</p>
+                  {msg.status === "pending" && (
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" className="h-7 text-[11px] flex-1" onClick={() => handleApproveMessage(msg.id)}>
+                        <CheckCircle className="mr-1 h-3 w-3" />Onayla
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" onClick={() => handleRejectMessage(msg.id)}>
+                        <XCircle className="mr-1 h-3 w-3" />Reddet
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
