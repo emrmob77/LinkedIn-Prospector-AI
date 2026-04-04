@@ -108,6 +108,51 @@ export default function SearchPage() {
     [loadingRunId]
   );
 
+  // Sınıflandırılmamış postlar varsa otomatik classify başlat
+  const autoClassifyRef = useRef(false);
+
+  const triggerAutoClassify = useCallback(async (runId: string, loadedPosts: PostCardData[]) => {
+    if (autoClassifyRef.current) return;
+    const unclassified = loadedPosts.filter(p => p.isRelevant == null);
+    if (unclassified.length === 0) return;
+
+    autoClassifyRef.current = true;
+
+    // Polling başlat
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/search/${runId}/posts`);
+        if (res.ok) {
+          const data = await res.json();
+          setPosts(data.posts || []);
+        }
+      } catch { /* sessiz */ }
+    }, 5000);
+
+    // Sınıflandırmayı tetikle (arka planda)
+    try {
+      await fetch("/api/posts/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchRunId: runId }),
+      });
+    } catch { /* sessiz */ }
+
+    // Polling durdur, son veriyi çek
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    try {
+      const res = await fetch(`/api/search/${runId}/posts`);
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data.posts || []);
+      }
+    } catch { /* sessiz */ }
+    autoClassifyRef.current = false;
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       const items = await fetchHistory();
@@ -121,8 +166,12 @@ export default function SearchPage() {
             const res = await fetch(`/api/search/${latest.id}/posts`);
             if (res.ok) {
               const data = await res.json();
-              setPosts(data.posts || []);
+              const loadedPosts = data.posts || [];
+              setPosts(loadedPosts);
               setActiveRunId(latest.id);
+
+              // Sınıflandırılmamış post varsa otomatik başlat
+              triggerAutoClassify(latest.id, loadedPosts);
             }
           } catch {
             // sessizce gec
@@ -133,6 +182,9 @@ export default function SearchPage() {
       }
     };
     init();
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

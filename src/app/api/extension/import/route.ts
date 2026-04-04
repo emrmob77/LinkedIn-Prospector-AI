@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { processExtensionImport } from '@/services/extensionImportService';
-import { classifyPostsBatch } from '@/services/aiClassificationService';
-import type { BusinessContext } from '@/services/aiClassificationService';
-import { extractLeadsBatch } from '@/services/leadExtractionService';
-import { getUserAIClient } from '@/lib/ai-client';
-import { supabaseAdmin } from '@/lib/supabase-admin';
-import type { Post } from '@/types/models';
 import type { ExtensionImportRequest, ExtensionPostData } from '@/types/extension';
 
 // CORS headers for Chrome Extension requests
@@ -121,31 +115,8 @@ export async function POST(request: NextRequest) {
       message: `${result.postsImported} post basariyla aktarildi.`,
     };
 
-    // --- Auto-classification: import sonrasi otomatik siniflandirma ---
-    if (result.postsImported > 0) {
-      try {
-        const autoClassifyResult = await runAutoClassification(
-          supabase,
-          user.id,
-          result.searchRunId
-        );
-
-        if (autoClassifyResult) {
-          response.autoClassified = true;
-          response.classified = autoClassifyResult.classified;
-          response.relevant = autoClassifyResult.relevant;
-          response.leadsCreated = autoClassifyResult.leadsCreated;
-          response.message = `${result.postsImported} post aktarildi, ${autoClassifyResult.classified} siniflandirildi, ${autoClassifyResult.relevant} ilgili bulundu.`;
-        }
-      } catch (classifyError) {
-        // Siniflandirma hatasi import basarisini etkilememeli
-        console.error('Auto-classification error (import still successful):', classifyError);
-        response.autoClassified = false;
-        response.autoClassifyError = classifyError instanceof Error
-          ? classifyError.message
-          : 'Otomatik siniflandirma sirasinda hata olustu';
-      }
-    }
+    // Auto-classification artık frontend tarafında yapılıyor (Vercel timeout sorunu)
+    // Search sayfası yüklendiğinde sınıflandırılmamış post varsa otomatik başlatılır
 
     return NextResponse.json(response, { status: 200, headers: CORS_HEADERS });
   } catch (error) {
@@ -159,161 +130,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ============================================
-// Validation helpers
-// ============================================
-
-/**
- * Kullanici ayarlarinda auto_classify aktifse, import edilen postlari
- * otomatik siniflandirir ve ilgili olanlardan lead cikarir.
- */
-async function runAutoClassification(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string,
-  searchRunId: string
-): Promise<{
-  classified: number;
-  relevant: number;
-  leadsCreated: number;
-} | null> {
-  // 1. Kullanici ayarlarindan auto_classify kontrolu
-  const { data: settings } = await supabaseAdmin
-    .from('user_settings')
-    .select('auto_classify, classification_prompt, company_context, message_prompt, ai_temperature')
-    .eq('user_id', userId)
-    .single();
-
-  // auto_classify false ise veya ayar yoksa atla
-  if (!settings || settings.auto_classify === false) {
-    return null;
-  }
-
-  // 2. Import edilen henuz siniflandirilmamis postlari cek
-  const { data: postRows, error: fetchError } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('search_run_id', searchRunId)
-    .is('classified_at', null);
-
-  if (fetchError || !postRows || postRows.length === 0) {
-    return null;
-  }
-
-  // 3. DB satirlarini Post tipine donustur (classify route pattern'i)
-  const typedPosts: Post[] = postRows.map((row: Record<string, unknown>) => ({
-    id: row.id as string,
-    searchRunId: row.search_run_id as string,
-    content: row.content as string,
-    authorName: row.author_name as string,
-    authorTitle: row.author_title as string | null,
-    authorCompany: row.author_company as string | null,
-    authorLinkedinUrl: row.author_linkedin_url as string,
-    linkedinPostUrl: row.linkedin_post_url as string,
-    engagementLikes: (row.engagement_likes as number) ?? 0,
-    engagementComments: (row.engagement_comments as number) ?? 0,
-    engagementShares: (row.engagement_shares as number) ?? 0,
-    publishedAt: new Date(row.published_at as string),
-    scrapedAt: new Date((row.scraped_at || row.created_at) as string),
-    rawHtml: row.raw_html as string | null,
-    authorProfilePicture: row.author_profile_picture as string | null,
-    authorFollowersCount: row.author_followers_count as number | null,
-    authorType: (row.author_type as string) || 'Person',
-    images: (row.images as string[]) || [],
-    linkedinUrn: row.linkedin_urn as string | null,
-    rawJson: row.raw_json as Record<string, unknown> | null,
-    isRelevant: row.is_relevant as boolean | null,
-    relevanceConfidence: row.relevance_confidence as number | null,
-    theme: row.theme as string | null,
-    giftType: row.gift_type as string | null,
-    competitor: row.competitor as string | null,
-    classificationReasoning: row.classification_reasoning as string | null,
-    classifiedAt: row.classified_at ? new Date(row.classified_at as string) : null,
-    createdAt: new Date(row.created_at as string),
-    updatedAt: new Date(row.updated_at as string),
-  }));
-
-  // 4. AI client al
-  const aiClient = await getUserAIClient(userId);
-
-  // 5. BusinessContext olustur
-  let businessCtx: BusinessContext | undefined;
-  if (settings) {
-    businessCtx = {
-      classificationPrompt: settings.classification_prompt || '',
-      companyContext: settings.company_context || '',
-      messagePrompt: settings.message_prompt || '',
-      aiTemperature: settings.ai_temperature != null ? Number(settings.ai_temperature) : undefined,
-    };
-  }
-
-  // 6. Siniflandirma
-  const classifyResult = await classifyPostsBatch(typedPosts, supabase, aiClient, businessCtx);
-
-  // 7. search_run tablosunu guncelle
-  await supabase
-    .from('search_runs')
-    .update({ posts_relevant: classifyResult.relevant })
-    .eq('id', searchRunId);
-
-  // 8. Lead extraction — ilgili postlardan lead cikar
-  let leadsCreated = 0;
-
-  if (classifyResult.relevant > 0) {
-    const postIdsToCheck = typedPosts.map((p) => p.id);
-    const { data: classifiedRows } = await supabase
-      .from('posts')
-      .select('*')
-      .in('id', postIdsToCheck)
-      .eq('is_relevant', true);
-
-    if (classifiedRows && classifiedRows.length > 0) {
-      const relevantPosts: Post[] = classifiedRows.map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        searchRunId: row.search_run_id as string,
-        content: row.content as string,
-        authorName: row.author_name as string,
-        authorTitle: row.author_title as string | null,
-        authorCompany: row.author_company as string | null,
-        authorLinkedinUrl: row.author_linkedin_url as string,
-        linkedinPostUrl: row.linkedin_post_url as string,
-        engagementLikes: (row.engagement_likes as number) ?? 0,
-        engagementComments: (row.engagement_comments as number) ?? 0,
-        engagementShares: (row.engagement_shares as number) ?? 0,
-        publishedAt: new Date(row.published_at as string),
-        scrapedAt: new Date((row.scraped_at || row.created_at) as string),
-        rawHtml: row.raw_html as string | null,
-        authorProfilePicture: row.author_profile_picture as string | null,
-        authorFollowersCount: row.author_followers_count as number | null,
-        authorType: (row.author_type as string) || 'Person',
-        images: (row.images as string[]) || [],
-        linkedinUrn: row.linkedin_urn as string | null,
-        rawJson: row.raw_json as Record<string, unknown> | null,
-        isRelevant: row.is_relevant as boolean | null,
-        relevanceConfidence: row.relevance_confidence as number | null,
-        theme: row.theme as string | null,
-        giftType: row.gift_type as string | null,
-        competitor: row.competitor as string | null,
-        classificationReasoning: row.classification_reasoning as string | null,
-        classifiedAt: row.classified_at ? new Date(row.classified_at as string) : null,
-        createdAt: new Date(row.created_at as string),
-        updatedAt: new Date(row.updated_at as string),
-      }));
-
-      const leadResult = await extractLeadsBatch(relevantPosts, supabase, userId);
-      leadsCreated = leadResult.created;
-
-      // search_run leads_extracted guncelle
-      await supabase
-        .from('search_runs')
-        .update({ leads_extracted: leadResult.created + leadResult.updated })
-        .eq('id', searchRunId);
-    }
-  }
-
-  return {
-    classified: classifyResult.classified,
-    relevant: classifyResult.relevant,
-    leadsCreated,
-  };
-}
 
