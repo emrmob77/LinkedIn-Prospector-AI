@@ -63,11 +63,42 @@ function sanitizeField(value: string | null | undefined): string | null {
     /düzenlendi/i,                 // "Düzenlendi •"
     /^takip/i,                     // "Takip et"
     /^bağlantı/i,                  // "Bağlantı kur"
+    /[\d.]+\s*takipçi/i,          // "273.412 takipçi", "9.647 takipçi"
+    /^\d[\d.,]+$/,                 // Sadece sayı
+    /^followers?$/i,               // "followers"
+    /şirketi$/i,                   // "Muhiku şirketi" — sadece title alanında
   ];
   for (const pattern of garbagePatterns) {
     if (pattern.test(trimmed)) return null;
   }
   return trimmed;
+}
+
+/**
+ * LinkedIn URL'sini normalize eder — /posts/, trailing slash vb. kaldırır.
+ * Böylece aynı firma/kişi farklı URL varyantlarıyla duplicate lead oluşturmaz.
+ */
+function normalizeLinkedinUrl(url: string): string {
+  let normalized = url.trim().toLowerCase();
+  // /posts/ /recent-activity/ vb. kaldır
+  normalized = normalized.replace(/\/(posts|recent-activity|about|jobs|people)\/?.*$/, '/');
+  // Trailing slash standardize
+  if (!normalized.endsWith('/')) normalized += '/';
+  // Query params kaldır
+  normalized = normalized.split('?')[0];
+  return normalized;
+}
+
+/**
+ * İsim temizleme — "Muhiku şirketi" → "Muhiku", duplicate isim vb.
+ */
+function sanitizeName(name: string): string {
+  let clean = name.trim();
+  // "Name şirketi" → "Name"
+  clean = clean.replace(/\s+şirketi$/i, '');
+  // Duplicate isim: "Name Name" → "Name"
+  clean = clean.replace(/(.+)\s+\1/, '$1');
+  return clean;
 }
 
 function isExtractablePost(post: Post): boolean {
@@ -91,11 +122,14 @@ export async function checkDuplicateLead(
   supabase: SupabaseClient
 ): Promise<Lead | null> {
   try {
+    const normalized = normalizeLinkedinUrl(authorLinkedinUrl);
+    // Hem orijinal hem normalize URL ile ara
     const { data, error } = await supabase
       .from('leads')
       .select('*')
-      .eq('linkedin_url', authorLinkedinUrl)
       .eq('user_id', userId)
+      .or(`linkedin_url.eq.${authorLinkedinUrl},linkedin_url.eq.${normalized}`)
+      .limit(1)
       .single();
 
     if (error || !data) return null;
@@ -180,12 +214,14 @@ export async function extractLeadFromPost(
         post_count: newPostCount,
       };
 
-      // Title veya company bilgisi eksikse ve yeni post'ta varsa guncelle
+      // Title veya company bilgisi eksikse ve yeni post'ta varsa guncelle (sanitize)
       if (!existingLead.title && post.authorTitle) {
-        updatePayload.title = post.authorTitle;
+        const cleanTitle = sanitizeField(post.authorTitle);
+        if (cleanTitle) updatePayload.title = cleanTitle;
       }
       if (!existingLead.company && post.authorCompany) {
-        updatePayload.company = post.authorCompany;
+        const cleanCompany = sanitizeField(post.authorCompany);
+        if (cleanCompany) updatePayload.company = cleanCompany;
       }
 
       // Profile picture eksikse guncelle
@@ -209,14 +245,15 @@ export async function extractLeadFromPost(
     // Çöp title/company verilerini temizle
     const cleanTitle = sanitizeField(post.authorTitle);
     const cleanCompany = sanitizeField(post.authorCompany);
-    const cleanName = post.authorName.replace(/(.+)\s+\1/, '$1').trim(); // duplicate isim temizle
+    const cleanName = sanitizeName(post.authorName);
+    const normalizedUrl = normalizeLinkedinUrl(post.authorLinkedinUrl);
 
     const insertData: LeadInsertData = {
       user_id: userId,
       name: cleanName,
       title: cleanTitle,
       company: cleanCompany,
-      linkedin_url: post.authorLinkedinUrl,
+      linkedin_url: normalizedUrl,
       stage: DEFAULT_STAGE,
       score: 0,
       score_breakdown: null,
