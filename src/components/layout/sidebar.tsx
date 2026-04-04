@@ -35,7 +35,7 @@ const navItems = [
     label: "İletişim Hattı",
     href: "/pipeline",
     icon: Users,
-    badge: "24",
+    badge: null,
   },
   {
     label: "Raporlama",

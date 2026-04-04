@@ -45,6 +45,30 @@ const DEFAULT_SOURCE: LeadSource = 'post_author';
  * Post'un lead olarak cikarilabilir olup olmadigini kontrol eder.
  * authorLinkedinUrl bos veya gecersiz olan postlari atlar.
  */
+/**
+ * Çöp veri içeren title/company alanlarını temizler.
+ * LinkedIn parser bazen "• 2.", "Web sitesini ziyaret edin", "4 ay • Düzenlendi •" gibi
+ * değerler çıkarıyor — bunları null'a çevirir.
+ */
+function sanitizeField(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed.length < 3) return null;
+  // Çöp pattern'ları
+  const garbagePatterns = [
+    /^•\s*\d/,                    // "• 2.", "• 3.+"
+    /^\d+\s*(ay|gün|saat|dk)/i,   // "4 ay • Düzenlendi"
+    /^web sitesini/i,              // "Web sitesini ziyaret edin"
+    /düzenlendi/i,                 // "Düzenlendi •"
+    /^takip/i,                     // "Takip et"
+    /^bağlantı/i,                  // "Bağlantı kur"
+  ];
+  for (const pattern of garbagePatterns) {
+    if (pattern.test(trimmed)) return null;
+  }
+  return trimmed;
+}
+
 function isExtractablePost(post: Post): boolean {
   if (!post.isRelevant) return false;
   if (!post.authorLinkedinUrl || post.authorLinkedinUrl.trim() === '') return false;
@@ -181,11 +205,16 @@ export async function extractLeadFromPost(
     }
 
     // --- Yeni lead olustur ---
+    // Çöp title/company verilerini temizle
+    const cleanTitle = sanitizeField(post.authorTitle);
+    const cleanCompany = sanitizeField(post.authorCompany);
+    const cleanName = post.authorName.replace(/(.+)\s+\1/, '$1').trim(); // duplicate isim temizle
+
     const insertData: LeadInsertData = {
       user_id: userId,
-      name: post.authorName,
-      title: post.authorTitle || null,
-      company: post.authorCompany || null,
+      name: cleanName,
+      title: cleanTitle,
+      company: cleanCompany,
       linkedin_url: post.authorLinkedinUrl,
       stage: DEFAULT_STAGE,
       score: 0,
