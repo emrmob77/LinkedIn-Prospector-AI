@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { SearchForm } from "@/components/search/search-form";
 import { SearchResults } from "@/components/search/search-results";
@@ -38,6 +38,7 @@ export default function SearchPage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // localStorage'dan favorileri yukle
   useEffect(() => {
@@ -287,7 +288,25 @@ export default function SearchPage() {
           <SearchResults
             posts={posts}
             searchRunId={activeRunId}
+            onClassifyStart={() => {
+              // Her 5 saniyede postları yenile (progress bar güncellenir)
+              if (pollingRef.current) clearInterval(pollingRef.current);
+              pollingRef.current = setInterval(async () => {
+                if (!activeRunId) return;
+                try {
+                  const res = await fetch(`/api/search/${activeRunId}/posts`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    setPosts(data.posts || []);
+                  }
+                } catch { /* sessiz */ }
+              }, 5000);
+            }}
             onClassifyComplete={() => {
+              if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+              }
               if (activeRunId) {
                 loadRunPosts(activeRunId);
               }

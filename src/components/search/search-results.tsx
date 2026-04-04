@@ -41,6 +41,7 @@ interface ClassifyResult {
 interface SearchResultsProps {
   posts: PostCardData[];
   searchRunId?: string | null;
+  onClassifyStart?: () => void;
   onClassifyComplete?: (result: ClassifyResult) => void;
 }
 
@@ -211,7 +212,7 @@ function ListItem({ post }: { post: PostCardData }) {
   );
 }
 
-export function SearchResults({ posts, searchRunId, onClassifyComplete }: SearchResultsProps) {
+export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyComplete }: SearchResultsProps) {
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("3");
   const [classifying, setClassifying] = useState(false);
@@ -232,6 +233,7 @@ export function SearchResults({ posts, searchRunId, onClassifyComplete }: Search
     if (!searchRunId || classifying) return;
     setClassifying(true);
     setClassifyMessage(null);
+    onClassifyStart?.();
 
     try {
       const res = await fetch("/api/posts/classify", {
@@ -257,7 +259,7 @@ export function SearchResults({ posts, searchRunId, onClassifyComplete }: Search
     } finally {
       setClassifying(false);
     }
-  }, [searchRunId, classifying, onClassifyComplete]);
+  }, [searchRunId, classifying, onClassifyStart, onClassifyComplete]);
 
   return (
     <Card>
