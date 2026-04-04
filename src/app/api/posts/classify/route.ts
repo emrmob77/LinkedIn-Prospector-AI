@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { classifyPostsBatch } from '@/services/aiClassificationService';
+import { classifyPostsBatch, scoreLead } from '@/services/aiClassificationService';
 import type { BusinessContext } from '@/services/aiClassificationService';
 import { extractLeadsBatch } from '@/services/leadExtractionService';
 import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import type { Post } from '@/types/models';
+import type { Post, Lead } from '@/types/models';
 import { logActivity } from '@/services/activityLogService';
 
 export async function POST(request: NextRequest) {
@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
     // --- Lead extraction: ilgili postlardan lead cikar ---
     let leadsCreated = 0;
     let leadsUpdated = 0;
+    let leadsScored = 0;
 
     if (result.relevant > 0) {
       // DB'den siniflandirilmis ve relevant postlari cek
@@ -197,6 +198,69 @@ export async function POST(request: NextRequest) {
         leadsCreated = leadResult.created;
         leadsUpdated = leadResult.updated;
 
+        // --- Lead Scoring: yeni oluşturulan lead'leri puanla (max 5) ---
+        if (leadsCreated > 0) {
+          try {
+            // Yeni oluşturulan lead'leri çek (score = 0 ve score_breakdown = null olanlar)
+            const relevantLinkedinUrls = relevantPosts
+              .map((p) => p.authorLinkedinUrl)
+              .filter(Boolean);
+
+            const { data: newLeadRows } = await supabase
+              .from('leads')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('score', 0)
+              .is('score_breakdown', null)
+              .in('linkedin_url', relevantLinkedinUrls)
+              .limit(5);
+
+            if (newLeadRows && newLeadRows.length > 0) {
+              for (const row of newLeadRows) {
+                const lead: Lead = {
+                  id: row.id,
+                  userId: row.user_id,
+                  name: row.name,
+                  title: row.title,
+                  company: row.company,
+                  linkedinUrl: row.linkedin_url,
+                  stage: row.stage,
+                  score: Number(row.score),
+                  scoreBreakdown: row.score_breakdown,
+                  painPoints: row.pain_points || [],
+                  keyInterests: row.key_interests || [],
+                  firstPostId: row.first_post_id,
+                  postCount: row.post_count || 1,
+                  isActive: row.is_active ?? true,
+                  source: row.source || 'post_author',
+                  profilePicture: row.profile_picture || null,
+                  createdAt: new Date(row.created_at),
+                  updatedAt: new Date(row.updated_at),
+                  archivedAt: row.archived_at ? new Date(row.archived_at) : null,
+                };
+
+                const scoreResult = await scoreLead(lead, aiClient, businessCtx);
+
+                const { error: scoreUpdateError } = await supabase
+                  .from('leads')
+                  .update({
+                    score: scoreResult.total,
+                    score_breakdown: scoreResult.breakdown,
+                  })
+                  .eq('id', lead.id);
+
+                if (scoreUpdateError) {
+                  console.error('Lead skor guncelleme hatasi:', scoreUpdateError, { leadId: lead.id });
+                } else {
+                  leadsScored++;
+                }
+              }
+            }
+          } catch (scoreError) {
+            console.error('Lead scoring hatasi (devam ediliyor):', scoreError);
+          }
+        }
+
         // searchRunId varsa leads_extracted alanini guncelle
         if (searchRunId) {
           await supabase
@@ -218,6 +282,7 @@ export async function POST(request: NextRequest) {
         classified: result.classified,
         relevant: result.relevant,
         irrelevant: result.irrelevant,
+        leadsScored,
       },
     });
 
@@ -227,6 +292,7 @@ export async function POST(request: NextRequest) {
       irrelevant: result.irrelevant,
       leadsCreated,
       leadsUpdated,
+      leadsScored,
     });
   } catch (error) {
     console.error('Siniflandirma API hatasi:', error);

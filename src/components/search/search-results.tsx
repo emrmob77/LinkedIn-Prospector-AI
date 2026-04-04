@@ -212,19 +212,21 @@ function ListItem({ post }: { post: PostCardData }) {
 }
 
 export function SearchResults({ posts, searchRunId, onClassifyComplete }: SearchResultsProps) {
-  const [showIrrelevant, setShowIrrelevant] = useState(false);
+  const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("3");
   const [classifying, setClassifying] = useState(false);
   const [classifyMessage, setClassifyMessage] = useState<string | null>(null);
 
-  const filteredPosts = showIrrelevant
-    ? posts
-    : posts.filter((p) => p.isRelevant !== false);
-
   const relevantCount = posts.filter((p) => p.isRelevant === true).length;
-  const classifiedCount = posts.filter((p) => p.isRelevant !== null && p.isRelevant !== undefined).length;
+  const irrelevantCount = posts.filter((p) => p.isRelevant === false).length;
+  const unclassifiedCount = posts.filter((p) => p.isRelevant == null).length;
+  const classifiedCount = relevantCount + irrelevantCount;
   const allClassified = classifiedCount === posts.length && posts.length > 0;
   const totalCount = posts.length;
+
+  const filteredPosts = showOnlyRelevant
+    ? posts.filter((p) => p.isRelevant === true)
+    : posts;
 
   const handleClassify = useCallback(async () => {
     if (!searchRunId || classifying) return;
@@ -316,33 +318,40 @@ export function SearchResults({ posts, searchRunId, onClassifyComplete }: Search
               ))}
             </div>
 
-            {relevantCount > 0 && (
+            {classifiedCount > 0 && (
               <Badge variant="default" className="gap-1">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 {relevantCount} ilgili
               </Badge>
             )}
-            {totalCount - relevantCount > 0 && (
+            {irrelevantCount > 0 && (
+              <Badge variant="destructive" className="gap-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-red-300" />
+                {irrelevantCount} ilgisiz
+              </Badge>
+            )}
+            {unclassifiedCount > 0 && (
               <Badge variant="secondary" className="gap-1">
                 <div className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                {totalCount - relevantCount} diger
+                {unclassifiedCount} bekliyor
               </Badge>
             )}
             <Button
-              variant="ghost"
+              variant={showOnlyRelevant ? "default" : "ghost"}
               size="sm"
-              onClick={() => setShowIrrelevant(!showIrrelevant)}
+              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
               className="text-xs h-7"
+              disabled={relevantCount === 0}
             >
-              {showIrrelevant ? (
+              {showOnlyRelevant ? (
                 <>
                   <EyeOff className="mr-1 h-3 w-3" />
-                  Filtrele
+                  Tumunu Goster
                 </>
               ) : (
                 <>
                   <Eye className="mr-1 h-3 w-3" />
-                  Tumu
+                  Sadece Ilgili
                 </>
               )}
             </Button>

@@ -15,6 +15,7 @@ import {
   Inbox,
   ChevronDown,
   ChevronUp,
+  Star,
 } from "lucide-react";
 
 interface ImportHistoryItem {
@@ -36,6 +37,36 @@ export default function SearchPage() {
   const [history, setHistory] = useState<ImportHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  // localStorage'dan favorileri yukle
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("search_favorites");
+      if (stored) {
+        setFavorites(new Set(JSON.parse(stored)));
+      }
+    } catch {
+      // localStorage bos veya bozuk — sessizce gec
+    }
+  }, []);
+
+  const toggleFavorite = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        localStorage.setItem("search_favorites", JSON.stringify(Array.from(next)));
+        return next;
+      });
+    },
+    []
+  );
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -115,7 +146,16 @@ export default function SearchPage() {
   };
 
   const activeItem = history.find((h) => h.id === activeRunId);
-  const visibleHistory = historyExpanded ? history : history.slice(0, 3);
+
+  // Favoriler en uste, geri kalanlar orijinal sirada
+  const sortedHistory = [...history].sort((a, b) => {
+    const aFav = favorites.has(a.id) ? 1 : 0;
+    const bFav = favorites.has(b.id) ? 1 : 0;
+    return bFav - aFav;
+  });
+  const visibleHistory = historyExpanded
+    ? sortedHistory
+    : sortedHistory.slice(0, 3);
 
   return (
     <AppLayout
@@ -163,37 +203,55 @@ export default function SearchPage() {
               <>
                 <div className="flex flex-wrap gap-1.5">
                   {visibleHistory.map((item) => (
-                    <Button
-                      key={item.id}
-                      variant={activeRunId === item.id ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 text-[11px] gap-1.5 px-2.5"
-                      onClick={() => loadRunPosts(item.id)}
-                      disabled={
-                        loadingRunId !== null ||
-                        item.status === "failed" ||
-                        item.postsFound === 0
-                      }
-                    >
-                      {loadingRunId === item.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          {item.source === "chrome_extension" ? (
-                            <Puzzle className="h-3 w-3" />
-                          ) : (
-                            <Bot className="h-3 w-3" />
-                          )}
-                          <span>{formatDate(item.createdAt)}</span>
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] px-1 py-0 h-4 ml-0.5"
-                          >
-                            {item.postsFound}
-                          </Badge>
-                        </>
-                      )}
-                    </Button>
+                    <div key={item.id} className="flex items-center gap-0.5">
+                      <Button
+                        variant={activeRunId === item.id ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 text-[11px] gap-1.5 px-2.5"
+                        onClick={() => loadRunPosts(item.id)}
+                        disabled={
+                          loadingRunId !== null ||
+                          item.status === "failed" ||
+                          item.postsFound === 0
+                        }
+                      >
+                        {loadingRunId === item.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            {item.source === "chrome_extension" ? (
+                              <Puzzle className="h-3 w-3" />
+                            ) : (
+                              <Bot className="h-3 w-3" />
+                            )}
+                            <span>{formatDate(item.createdAt)}</span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] px-1 py-0 h-4 ml-0.5"
+                            >
+                              {item.postsFound}
+                            </Badge>
+                          </>
+                        )}
+                      </Button>
+                      <button
+                        onClick={(e) => toggleFavorite(item.id, e)}
+                        className="p-0.5 rounded hover:bg-muted transition-colors"
+                        title={
+                          favorites.has(item.id)
+                            ? "Favorilerden cikar"
+                            : "Favorilere ekle"
+                        }
+                      >
+                        <Star
+                          className={`h-3.5 w-3.5 transition-colors ${
+                            favorites.has(item.id)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-muted-foreground/40 hover:text-yellow-400"
+                          }`}
+                        />
+                      </button>
+                    </div>
                   ))}
                 </div>
                 {history.length > 3 && (
