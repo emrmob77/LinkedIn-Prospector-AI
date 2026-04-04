@@ -302,7 +302,31 @@ export function SearchResults({ posts, searchRunId, onClassifyComplete }: Search
               </Button>
             )}
 
-            {/* View mode toggle */}
+              {/* Ilgili/Ilgisiz/Bekliyor badge'leri */}
+            {classifiedCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] h-5 bg-emerald-50 text-emerald-700 border-emerald-200">{relevantCount} ilgili</Badge>
+                <Badge variant="outline" className="text-[10px] h-5 bg-red-50 text-red-600 border-red-200">{irrelevantCount} ilgisiz</Badge>
+                {unclassifiedCount > 0 && (
+                  <Badge variant="outline" className="text-[10px] h-5">{unclassifiedCount} bekliyor</Badge>
+                )}
+              </div>
+            )}
+
+            {/* Relevance filter toggle */}
+            {relevantCount > 0 && (
+              <Button
+                variant={showOnlyRelevant ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[11px] gap-1"
+                onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
+              >
+                {showOnlyRelevant ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                {showOnlyRelevant ? "Tümü" : "Sadece İlgili"}
+              </Button>
+            )}
+
+          {/* View mode toggle */}
             <div className="flex items-center border rounded-md overflow-hidden">
               {viewModeOptions.map((opt) => (
                 <Button
@@ -318,45 +342,36 @@ export function SearchResults({ posts, searchRunId, onClassifyComplete }: Search
               ))}
             </div>
 
-            {classifiedCount > 0 && (
-              <Badge variant="default" className="gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                {relevantCount} ilgili
-              </Badge>
-            )}
-            {irrelevantCount > 0 && (
-              <Badge variant="destructive" className="gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-red-300" />
-                {irrelevantCount} ilgisiz
-              </Badge>
-            )}
-            {unclassifiedCount > 0 && (
-              <Badge variant="secondary" className="gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                {unclassifiedCount} bekliyor
-              </Badge>
-            )}
-            <Button
-              variant={showOnlyRelevant ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
-              className="text-xs h-7"
-              disabled={relevantCount === 0}
-            >
-              {showOnlyRelevant ? (
-                <>
-                  <EyeOff className="mr-1 h-3 w-3" />
-                  Tumunu Goster
-                </>
-              ) : (
-                <>
-                  <Eye className="mr-1 h-3 w-3" />
-                  Sadece Ilgili
-                </>
-              )}
-            </Button>
           </div>
         </div>
+
+        {/* Sınıflandırma Progress Bar */}
+        {(classifying || (classifiedCount > 0 && classifiedCount < totalCount)) && (
+          <div className="mt-3 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                {classifying && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                {classifying ? "AI sınıflandırıyor..." : `${classifiedCount}/${totalCount} tamamlandı`}
+              </span>
+              <span className="font-mono text-muted-foreground">
+                %{totalCount > 0 ? Math.round((classifiedCount / totalCount) * 100) : 0}
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${totalCount > 0 ? (classifiedCount / totalCount) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Sınıflandırma sonuç mesajı */}
+        {classifyMessage && !classifying && (
+          <div className="mt-2 rounded-md bg-muted/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+            {classifyMessage}
+          </div>
+        )}
       </CardHeader>
       {classifyMessage && (
         <div className="mx-6 mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
