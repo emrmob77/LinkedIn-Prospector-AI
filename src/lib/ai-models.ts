@@ -29,5 +29,6 @@ export const PROVIDER_MODELS: Record<AIProvider, AIModelOption[]> = {
     { id: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash', tier: 'fast', tierLabel: 'Ucuz' },
     { id: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B', tier: 'fast', tierLabel: 'Açık Kaynak' },
     { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3', tier: 'fast', tierLabel: 'Çok Ucuz' },
+    { id: 'qwen/qwen3.6-plus:free', label: 'Qwen 3.6 Plus', tier: 'fast', tierLabel: 'Ücretsiz' },
   ],
 };
