@@ -102,7 +102,7 @@ Frontend, dört ana sayfaya sahip sunucu tarafında render edilen bir Next.js uy
 
 - **Dashboard**: Metrikleri, mini hat hunisini ve son aktiviteleri gösterir
 - **LinkedIn Arama**: Chrome Extension import geçmişi, AI sınıflandırma rozetleri ile sonuç grid/list
-- **İletişim Hattı**: 6 aşamalı sütunlarla tablo görünümü, potansiyel müşteri detay paneli
+- **İletişim Hattı**: 6 aşamalı Kanban board (drag & drop ile aşamalar arası taşıma) + tablo görünümü, potansiyel müşteri detay paneli
 - **Raporlama**: Filtreleme ve dashboard metrikleri ile aktivite kaydı
 
 Tüm sayfalar tutarlı tasarım için shadcn/ui bileşenlerini ve stil için Tailwind CSS kullanır.

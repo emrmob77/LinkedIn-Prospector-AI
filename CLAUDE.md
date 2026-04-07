@@ -5,8 +5,7 @@ AI destekli LinkedIn lead üretim platformu.
 ## Tech Stack
 - **Frontend:** Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend:** Next.js API Routes, Supabase (PostgreSQL + Auth + RLS)
-- **AI:** Claude API (lead scoring, classification)
-- **Queue:** BullMQ + Redis
+- **AI:** 4 provider (Anthropic Claude, OpenAI GPT, Google Gemini, OpenRouter)
 - **Veri Kaynağı:** Chrome Extension (LinkedIn sayfalarından post yakalama)
 
 ## Proje Yapısı
@@ -14,7 +13,7 @@ AI destekli LinkedIn lead üretim platformu.
 - `src/components/` — React bileşenleri (layout, search, pipeline, messages)
 - `src/services/` — İş mantığı servisleri
 - `src/types/` — TypeScript tip tanımları
-- `src/lib/` — Yardımcı kütüphaneler (Supabase client, Redis, Claude)
+- `src/lib/` — Yardımcı kütüphaneler (Supabase client, AI client, crypto, error handling)
 - `extension/` — Chrome Extension (content script, popup, background)
 - `supabase/migrations/` — Veritabanı migration dosyaları
 

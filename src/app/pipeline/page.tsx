@@ -3,10 +3,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PipelineTable, type LeadData } from "@/components/pipeline/pipeline-table";
+import { KanbanBoard } from "@/components/pipeline/kanban-board";
 import { LeadDetailPanel } from "@/components/pipeline/lead-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Users, BarChart3, AlertCircle, Loader2, Target, UserPlus } from "lucide-react";
+import {
+  Download,
+  Users,
+  BarChart3,
+  AlertCircle,
+  Loader2,
+  Target,
+  UserPlus,
+  LayoutGrid,
+  List,
+} from "lucide-react";
 
 // Stage renk ve stil konfigurasyonu
 const STAGE_CONFIG = [
@@ -31,8 +42,11 @@ interface LeadsResponse {
   totalPages: number;
 }
 
+type ViewMode = "kanban" | "table";
+
 export default function PipelinePage() {
   const [selectedLead, setSelectedLead] = useState<LeadData | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
 
   // Stats state
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -77,11 +91,12 @@ export default function PipelinePage() {
     setLeadsError(null);
     try {
       const params = new URLSearchParams();
-      if (stageFilter !== "all") {
+      if (viewMode === "table" && stageFilter !== "all") {
         params.set("stage", stageFilter);
       }
       params.set("page", String(page));
-      params.set("limit", "20");
+      // Kanban icin daha fazla lead cek (tum kolonlari doldurmak icin)
+      params.set("limit", viewMode === "kanban" ? "100" : "20");
       params.set("sort", "score");
       params.set("order", "desc");
 
@@ -98,7 +113,7 @@ export default function PipelinePage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [stageFilter, page]);
+  }, [stageFilter, page, viewMode]);
 
   // Asama degistir
   const handleStageChange = useCallback(async (leadId: string, newStage: string) => {
@@ -113,23 +128,20 @@ export default function PipelinePage() {
         throw new Error(`Asama degistirilemedi (${res.status})`);
       }
 
-      // Basarili: local state'i guncelle (optimistic update)
+      // Optimistic update
       setLeads((prev) =>
         prev.map((lead) =>
           lead.id === leadId ? { ...lead, stage: newStage } : lead
         )
       );
 
-      // Secili lead aciksa onu da guncelle
       setSelectedLead((prev) =>
         prev && prev.id === leadId ? { ...prev, stage: newStage } : prev
       );
 
-      // Istatistikleri tekrar cek
       fetchStats();
     } catch (err) {
       console.error("Asama degistirme hatasi:", err);
-      // Hata durumunda verileri tekrar cek (rollback)
       fetchLeads();
     }
   }, [fetchStats, fetchLeads]);
@@ -155,16 +167,36 @@ export default function PipelinePage() {
       description="Leadlerinizi 6 asamali pipeline uzerinden yonetin"
       actions={
         <div className="flex gap-2">
+          {/* Gorunum degistirici */}
+          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+            <Button
+              variant={viewMode === "kanban" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5"
+              onClick={() => setViewMode("kanban")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5"
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
           <Button variant="outline" size="sm" disabled={extracting}
             onClick={async () => {
               setExtracting(true);
               try {
                 const res = await fetch("/api/leads/extract", { method: "POST" });
                 if (res.ok) { fetchStats(); fetchLeads(); }
-              } catch {} finally { setExtracting(false); }
+              } catch (err) { console.error("Lead cikarma hatasi:", err); } finally { setExtracting(false); }
             }}>
             {extracting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <UserPlus className="mr-2 h-3.5 w-3.5" />}
-            {extracting ? "Çıkarılıyor..." : "Lead Çıkar"}
+            {extracting ? "Cikariliyor..." : "Lead Cikar"}
           </Button>
           <Button variant="outline" size="sm" disabled={scoring}
             onClick={async () => {
@@ -172,10 +204,10 @@ export default function PipelinePage() {
               try {
                 const res = await fetch("/api/leads/score", { method: "POST" });
                 if (res.ok) { fetchStats(); fetchLeads(); }
-              } catch {} finally { setScoring(false); }
+              } catch (err) { console.error("Lead puanlama hatasi:", err); } finally { setScoring(false); }
             }}>
             {scoring ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Target className="mr-2 h-3.5 w-3.5" />}
-            {scoring ? "Puanlanıyor..." : "Lead Puanla"}
+            {scoring ? "Puanlaniyor..." : "Lead Puanla"}
           </Button>
           <Button variant="outline" size="sm" onClick={async () => {
             try {
@@ -192,10 +224,10 @@ export default function PipelinePage() {
               a.download = `leads-${Date.now()}.csv`;
               a.click();
               URL.revokeObjectURL(url);
-            } catch {}
+            } catch (err) { console.error("Disa aktarma hatasi:", err); }
           }}>
             <Download className="mr-2 h-3.5 w-3.5" />
-            Dışa Aktar
+            Disa Aktar
           </Button>
         </div>
       }
@@ -245,39 +277,43 @@ export default function PipelinePage() {
           ) : null}
         </div>
 
-        {/* Pipeline asama kartlari */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {statsLoading
-            ? STAGE_CONFIG.map((stage) => (
-                <div key={stage.key} className="rounded-xl border p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Skeleton className="h-2 w-2 rounded-full" />
-                    <Skeleton className="h-3 w-[80px]" />
-                  </div>
-                  <Skeleton className="h-8 w-[30px]" />
-                </div>
-              ))
-            : STAGE_CONFIG.map((stage) => {
-                const count = stats?.stages?.[stage.key] ?? 0;
-                return (
-                  <div
-                    key={stage.key}
-                    className={`rounded-xl border ${stage.bgLight} p-4 transition-shadow hover:shadow-sm cursor-pointer`}
-                    onClick={() => {
-                      handleStageFilterChange(stageFilter === stage.key ? "all" : stage.key);
-                    }}
-                  >
+        {/* Pipeline asama kartlari - sadece tablo gorunumunde goster */}
+        {viewMode === "table" && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {statsLoading
+              ? STAGE_CONFIG.map((stage) => (
+                  <div key={stage.key} className="rounded-xl border p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`h-2 w-2 rounded-full ${stage.color}`} />
-                      <p className={`text-xs font-medium ${stage.textColor}`}>
-                        {stage.label}
-                      </p>
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                      <Skeleton className="h-3 w-[80px]" />
                     </div>
-                    <p className="text-2xl font-bold">{count}</p>
+                    <Skeleton className="h-8 w-[30px]" />
                   </div>
-                );
-              })}
-        </div>
+                ))
+              : STAGE_CONFIG.map((stage) => {
+                  const count = stats?.stages?.[stage.key] ?? 0;
+                  return (
+                    <div
+                      key={stage.key}
+                      className={`rounded-xl border ${stage.bgLight} p-4 transition-shadow hover:shadow-sm cursor-pointer ${
+                        stageFilter === stage.key ? "ring-2 ring-primary" : ""
+                      }`}
+                      onClick={() => {
+                        handleStageFilterChange(stageFilter === stage.key ? "all" : stage.key);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`h-2 w-2 rounded-full ${stage.color}`} />
+                        <p className={`text-xs font-medium ${stage.textColor}`}>
+                          {stage.label}
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold">{count}</p>
+                    </div>
+                  );
+                })}
+          </div>
+        )}
 
         {/* Hata durumu */}
         {leadsError && (
@@ -294,21 +330,30 @@ export default function PipelinePage() {
           </div>
         )}
 
-        {/* Lead tablosu */}
-        <PipelineTable
-          leads={leads}
-          loading={leadsLoading}
-          onSelectLead={setSelectedLead}
-          onStageChange={handleStageChange}
-          total={total}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          stageFilter={stageFilter}
-          onStageFilterChange={handleStageFilterChange}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-        />
+        {/* Kanban veya Tablo gorunumu */}
+        {viewMode === "kanban" ? (
+          <KanbanBoard
+            leads={leads}
+            loading={leadsLoading}
+            onSelectLead={setSelectedLead}
+            onStageChange={handleStageChange}
+          />
+        ) : (
+          <PipelineTable
+            leads={leads}
+            loading={leadsLoading}
+            onSelectLead={setSelectedLead}
+            onStageChange={handleStageChange}
+            total={total}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            stageFilter={stageFilter}
+            onStageFilterChange={handleStageFilterChange}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+          />
+        )}
 
         {/* Lead detay paneli */}
         <LeadDetailPanel

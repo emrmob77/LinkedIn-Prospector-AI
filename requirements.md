@@ -253,7 +253,7 @@ LinkedIn Prospector AI, satış ekipleri için LinkedIn lead üretim sürecini o
 5. MVP insan onayı ile AI mesaj üretimini içerecektir
 6. MVP temel Aktivite_Logu işlevselliğini içerecektir
 7. MVP kullanıcı kimlik doğrulamasını içerecektir
-8. MVP Kanban görünümünü İÇERMEYECEKTİR (Faz 2 için ayrılmıştır)
+8. MVP Kanban görünümünü İÇERECEKTİR (@dnd-kit ile drag & drop destekli, tablo görünümüyle birlikte — tamamlandı)
 9. MVP gelişmiş otomasyonu İÇERMEYECEKTİR (Faz 2 için ayrılmıştır)
 10. MVP e-posta entegrasyonunu İÇERMEYECEKTİR (Faz 3 için ayrılmıştır)
 
