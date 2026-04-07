@@ -66,6 +66,8 @@ export interface Lead {
   isActive: boolean;
   source: LeadSource;
   profilePicture: string | null;
+  projectType: string | null;
+  isCompetitor: boolean;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
@@ -168,6 +170,7 @@ export interface UserSettings {
   classificationPrompt: string;
   companyContext: string;
   messagePrompt: string;
+  excludedBrands: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -195,4 +198,5 @@ export interface UserSettingsPublic {
   classificationPrompt: string;
   companyContext: string;
   messagePrompt: string;
+  excludedBrands: string[];
 }

@@ -45,7 +45,30 @@ LinkedIn Prospector AI — Chrome Extension ile LinkedIn'den post yakalayan, AI 
 - ~~8. BullMQ iş kuyruğu~~ — Gereksiz karmaşıklık, senkron çalışma yeterli
 - ~~13. Arama API endpoint'leri~~ — Apify kaldırıldı, Chrome Extension birincil kaynak
 
-## Faz 2 — Yeni Özellikler
+## Faz 2 — Pipeline Gelistirme (Proje Amaci: Hos Geldin Hediyesi)
+
+- [x] 42. Bug Fix: Sirket Adi Bos Geliyor
+  - [x] 42.1 `sanitizeField()` duzeltmesi — "sirketi" suffix strip (null yerine)
+- [x] 43. Pipeline Kategorilendirme (Proje Amaci)
+  - [x] 43.1 DB migration: leads'e `project_type`, `is_competitor`; user_settings'e `excluded_brands`
+  - [x] 43.2 Tip guncellemeleri (models.ts — Lead, UserSettings, UserSettingsPublic)
+  - [x] 43.3 Lead extraction'da project_type turetme (post.giftType || post.theme)
+  - [x] 43.4 Leads API'da projectType + isCompetitor response mapping + filtreler
+  - [x] 43.5 Kanban kart + tablo'da projectType badge gosterimi
+  - [x] 43.6 Pipeline sayfasinda proje tipi filtresi
+- [x] 44. Lead Detay Zenginlestirme
+  - [x] 44.1 Panel acildiginda iliskili post'lari cek (tema, hediye tipi, rakip, engagement)
+  - [x] 44.2 Gonderiler ve Analiz bolumu (post kartlari, AI analiz aciklamasi)
+- [x] 45. Marka Haric Tutma
+  - [x] 45.1 Settings API'da excludedBrands field
+  - [x] 45.2 Lead extraction'da excluded brands filtresi
+  - [x] 45.3 Ayarlar sayfasinda "Haric Tutulan Markalar" UI (tag input)
+- [x] 46. Rakip Isaretleme
+  - [x] 46.1 Rakip toggle API endpoint (PATCH /api/leads/:id/competitor)
+  - [x] 46.2 Lead detay panelinde rakip toggle butonu
+  - [x] 46.3 Pipeline'da "Rakipler" filtresi / ayri gorunum
+
+## Faz 2 — Diger Ozellikler
 
 - [ ] 41. AI Görsel Analiz (Post görsellerinden ürün/marka tespiti)
   - [ ] 41.1 DB migration: `posts` tablosuna `image_analysis` JSONB ve `image_analyzed_at` kolonu

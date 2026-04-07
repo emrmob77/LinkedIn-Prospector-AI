@@ -6,6 +6,7 @@ import { PipelineTable, type LeadData } from "@/components/pipeline/pipeline-tab
 import { KanbanBoard } from "@/components/pipeline/kanban-board";
 import { LeadDetailPanel } from "@/components/pipeline/lead-detail-panel";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Download,
@@ -17,6 +18,7 @@ import {
   UserPlus,
   LayoutGrid,
   List,
+  Swords,
 } from "lucide-react";
 
 // Stage renk ve stil konfigurasyonu
@@ -66,6 +68,9 @@ export default function PipelinePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [scoring, setScoring] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [showCompetitors, setShowCompetitors] = useState(false);
+  const [projectTypeFilter, setProjectTypeFilter] = useState<string | null>(null);
+  const [availableProjectTypes, setAvailableProjectTypes] = useState<string[]>([]);
 
   // Istatistikleri cek
   const fetchStats = useCallback(async () => {
@@ -99,6 +104,12 @@ export default function PipelinePage() {
       params.set("limit", viewMode === "kanban" ? "100" : "20");
       params.set("sort", "score");
       params.set("order", "desc");
+      if (showCompetitors) {
+        params.set("isCompetitor", "true");
+      }
+      if (projectTypeFilter) {
+        params.set("projectType", projectTypeFilter);
+      }
 
       const res = await fetch(`/api/leads?${params.toString()}`);
       if (!res.ok) {
@@ -108,12 +119,21 @@ export default function PipelinePage() {
       setLeads(data.leads);
       setTotal(data.total);
       setTotalPages(data.totalPages);
+
+      // Mevcut lead'lerden distinct project type'lari cikar
+      const newTypes: string[] = [];
+      data.leads.forEach((l: LeadData) => { if (l.projectType && !newTypes.includes(l.projectType)) newTypes.push(l.projectType); });
+      setAvailableProjectTypes((prev) => {
+        const all = prev.slice();
+        newTypes.forEach((t) => { if (!all.includes(t)) all.push(t); });
+        return all.sort();
+      });
     } catch (err) {
       setLeadsError(err instanceof Error ? err.message : "Bilinmeyen hata");
     } finally {
       setLeadsLoading(false);
     }
-  }, [stageFilter, page, viewMode]);
+  }, [stageFilter, page, viewMode, showCompetitors, projectTypeFilter]);
 
   // Asama degistir
   const handleStageChange = useCallback(async (leadId: string, newStage: string) => {
@@ -155,6 +175,18 @@ export default function PipelinePage() {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Rakip toggle
+  const handleCompetitorChange = useCallback((leadId: string, isCompetitor: boolean) => {
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === leadId ? { ...lead, isCompetitor } : lead
+      )
+    );
+    setSelectedLead((prev) =>
+      prev && prev.id === leadId ? { ...prev, isCompetitor } : prev
+    );
+  }, []);
+
   // Filtre degistiginde sayfayi 1'e sifirla
   const handleStageFilterChange = useCallback((stage: string) => {
     setStageFilter(stage);
@@ -186,6 +218,40 @@ export default function PipelinePage() {
               <List className="h-3.5 w-3.5" />
             </Button>
           </div>
+
+          <Button
+            variant={showCompetitors ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => { setShowCompetitors((v) => !v); setPage(1); }}
+          >
+            <Swords className="mr-2 h-3.5 w-3.5" />
+            {showCompetitors ? "Tum Leadler" : "Rakipler"}
+          </Button>
+
+          {/* Proje Tipi Filtresi */}
+          {availableProjectTypes.length > 0 && (
+            <div className="flex items-center gap-1">
+              {projectTypeFilter && (
+                <Badge
+                  variant="default"
+                  className="cursor-pointer text-[10px] h-7 px-2"
+                  onClick={() => { setProjectTypeFilter(null); setPage(1); }}
+                >
+                  {projectTypeFilter} ✕
+                </Badge>
+              )}
+              {!projectTypeFilter && availableProjectTypes.slice(0, 3).map((pt) => (
+                <Badge
+                  key={pt}
+                  variant="outline"
+                  className="cursor-pointer text-[10px] h-7 px-2 hover:bg-primary/10"
+                  onClick={() => { setProjectTypeFilter(pt); setPage(1); }}
+                >
+                  {pt}
+                </Badge>
+              ))}
+            </div>
+          )}
 
           <Button variant="outline" size="sm" disabled={extracting}
             onClick={async () => {
@@ -361,6 +427,7 @@ export default function PipelinePage() {
           onClose={() => setSelectedLead(null)}
           lead={selectedLead}
           onStageChange={handleStageChange}
+          onCompetitorChange={handleCompetitorChange}
         />
       </div>
     </AppLayout>

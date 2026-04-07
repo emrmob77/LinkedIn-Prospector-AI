@@ -23,6 +23,7 @@ import {
   FileText,
   MessageSquare,
   Clock,
+  Swords,
 } from "lucide-react";
 import { type LeadData } from "./pipeline-table";
 
@@ -300,13 +301,25 @@ function LeadCard({
         </div>
       </div>
 
-      {/* Company */}
-      {lead.company && (
+      {/* Company + Competitor */}
+      {(lead.company || lead.isCompetitor) && (
         <div className="flex items-center gap-1.5 mt-2">
           <Building className="h-3 w-3 text-muted-foreground/60 shrink-0" />
           <span className="text-[11px] text-muted-foreground truncate">
-            {lead.company}
+            {lead.company || "-"}
           </span>
+          {lead.isCompetitor && (
+            <span title="Rakip"><Swords className="h-3 w-3 text-red-500 shrink-0" /></span>
+          )}
+        </div>
+      )}
+
+      {/* Project Type */}
+      {lead.projectType && (
+        <div className="mt-1.5">
+          <Badge variant="outline" className="text-[9px] font-normal h-4 px-1.5">
+            {lead.projectType}
+          </Badge>
         </div>
       )}
 

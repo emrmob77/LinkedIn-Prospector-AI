@@ -194,7 +194,26 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(row.updated_at),
         }));
 
-        const leadResult = await extractLeadsBatch(relevantPosts, supabase, user.id);
+        // Haric tutulan markalari ayarlardan cek
+        let excludedBrands: string[] = [];
+        try {
+          const { data: settingsRow } = await supabaseAdmin
+            .from('user_settings')
+            .select('excluded_brands, company_name')
+            .eq('user_id', user.id)
+            .single();
+          if (settingsRow) {
+            const brands = Array.isArray(settingsRow.excluded_brands)
+              ? settingsRow.excluded_brands
+              : JSON.parse(settingsRow.excluded_brands || '[]');
+            excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b);
+            if (settingsRow.company_name && !excludedBrands.some((b: string) => b.toLowerCase() === (settingsRow.company_name as string).toLowerCase())) {
+              excludedBrands.push(settingsRow.company_name as string);
+            }
+          }
+        } catch { /* ignore */ }
+
+        const leadResult = await extractLeadsBatch(relevantPosts, supabase, user.id, excludedBrands);
         leadsCreated = leadResult.created;
         leadsUpdated = leadResult.updated;
 
@@ -234,6 +253,8 @@ export async function POST(request: NextRequest) {
                   isActive: row.is_active ?? true,
                   source: row.source || 'post_author',
                   profilePicture: row.profile_picture || null,
+                  projectType: row.project_type || null,
+                  isCompetitor: row.is_competitor ?? false,
                   createdAt: new Date(row.created_at),
                   updatedAt: new Date(row.updated_at),
                   archivedAt: row.archived_at ? new Date(row.archived_at) : null,
