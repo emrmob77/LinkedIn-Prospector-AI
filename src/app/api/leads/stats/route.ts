@@ -44,11 +44,11 @@ export async function GET() {
       .eq('user_id', user.id)
       .eq('is_active', true);
 
-    // Haric tutulan markalari filtrele (name + company, wildcard escape)
+    // Haric tutulan markalari filtrele (sadece company kolonunda)
+    // NOT ILIKE NULL satirlari disladigindan, company IS NULL olanlari da dahil et
     for (const brand of excludedBrands) {
       const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
-      query = query.not('name', 'ilike', `%${escaped}%`);
-      query = query.not('company', 'ilike', `%${escaped}%`);
+      query = query.or(`company.not.ilike.%${escaped}%,company.is.null`);
     }
 
     const { data: leads, error } = await query;
