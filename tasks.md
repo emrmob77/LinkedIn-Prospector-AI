@@ -94,6 +94,10 @@ LinkedIn Prospector AI — Chrome Extension ile LinkedIn'den post yakalayan, AI 
 
 ## Kalan İyileştirmeler (Faz 2+)
 
+- [ ] Lead Enrichment: şirket konum, çalışan sayısı, sektör bilgisi (Proxycurl veya LinkedIn company page parse)
+- [ ] Mevcut lead'ler için project_type backfill endpoint'i
+- [ ] Brand filtreleme kodunu merkezi yardımcı fonksiyona çıkar (DRY refactor)
+- [ ] Competitor toggle için activity log kaydı
 - [ ] Performans optimizasyonu (Redis cache, sorgu optimizasyonu)
 - [ ] Lead-post referans bütünlüğü kontrolleri
 - [ ] RLS policy audit (veri sahipliği doğrulama)
@@ -104,7 +108,7 @@ LinkedIn Prospector AI — Chrome Extension ile LinkedIn'den post yakalayan, AI 
 - [ ] Mesaj gönderim entegrasyonu (LinkedIn API / email API)
 - [ ] CRM entegrasyonu (Faz 3)
 
-## API Endpoint'leri (19 aktif)
+## API Endpoint'leri (21 aktif)
 
 ### Extension
 - `POST /api/extension/import` — Post import (auto-classify + lead extraction)
@@ -122,6 +126,8 @@ LinkedIn Prospector AI — Chrome Extension ile LinkedIn'den post yakalayan, AI 
 - `GET /api/leads/stats` — Pipeline istatistikleri
 - `GET /api/leads/archived` — Arşivlenmiş lead'ler
 - `POST /api/leads/score` — Manuel lead puanlama
+- `PATCH /api/leads/:id/competitor` — Rakip toggle
+- `POST /api/leads/backfill-company` — Şirket adı backfill
 
 ### Messages
 - `PATCH /api/messages/:id` — Mesaj düzenleme
