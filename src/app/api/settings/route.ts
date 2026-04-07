@@ -66,7 +66,20 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
       classificationPrompt: DEFAULTS.classificationPrompt,
       companyContext: DEFAULTS.companyContext,
       messagePrompt: DEFAULTS.messagePrompt,
+      excludedBrands: [],
     };
+  }
+
+  // excluded_brands JSONB -> string[]
+  let excludedBrands: string[] = [];
+  if (row.excluded_brands) {
+    try {
+      excludedBrands = Array.isArray(row.excluded_brands)
+        ? (row.excluded_brands as string[])
+        : JSON.parse(row.excluded_brands as string);
+    } catch {
+      excludedBrands = [];
+    }
   }
 
   return {
@@ -90,6 +103,7 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
     classificationPrompt: (row.classification_prompt as string) || DEFAULTS.classificationPrompt,
     companyContext: (row.company_context as string) || DEFAULTS.companyContext,
     messagePrompt: (row.message_prompt as string) || DEFAULTS.messagePrompt,
+    excludedBrands,
   };
 }
 
@@ -146,6 +160,7 @@ export async function PUT(request: NextRequest) {
       classificationPrompt,
       companyContext,
       messagePrompt,
+      excludedBrands,
     } = body as {
       anthropicApiKey?: string;
       openaiApiKey?: string;
@@ -163,6 +178,7 @@ export async function PUT(request: NextRequest) {
       classificationPrompt?: string;
       companyContext?: string;
       messagePrompt?: string;
+      excludedBrands?: string[];
     };
 
     // Güncellenecek alanları hazırla
@@ -213,6 +229,12 @@ export async function PUT(request: NextRequest) {
     if (classificationPrompt !== undefined) updates.classification_prompt = classificationPrompt.trim() || null;
     if (companyContext !== undefined) updates.company_context = companyContext.trim() || null;
     if (messagePrompt !== undefined) updates.message_prompt = messagePrompt.trim() || null;
+    if (excludedBrands !== undefined) {
+      if (!Array.isArray(excludedBrands) || !excludedBrands.every((b: unknown) => typeof b === 'string')) {
+        return NextResponse.json({ error: 'excludedBrands string dizisi olmali' }, { status: 400 });
+      }
+      updates.excluded_brands = excludedBrands.map((b: string) => b.trim()).filter(Boolean);
+    }
 
     // Atomik upsert
     const { error: upsertError } = await supabaseAdmin

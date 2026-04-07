@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
     const minScore = searchParams.get('minScore');
     const sort = searchParams.get('sort') || 'score';
     const order = searchParams.get('order') || 'desc';
+    const isCompetitor = searchParams.get('isCompetitor');
+    const projectType = searchParams.get('projectType');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
@@ -57,6 +60,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (isCompetitor === 'true') {
+      query = query.eq('is_competitor', true);
+    }
+
+    if (projectType) {
+      query = query.eq('project_type', projectType);
+    }
+
     // Pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -64,6 +75,37 @@ export async function GET(request: NextRequest) {
     query = query
       .order(sortColumn, { ascending })
       .range(from, to);
+
+    // Haric tutulan markalari cek ve sorguya ekle
+    let excludedBrands: string[] = [];
+    try {
+      const { data: settings } = await supabaseAdmin
+        .from('user_settings')
+        .select('excluded_brands, company_name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (settings) {
+        const brands = Array.isArray(settings.excluded_brands)
+          ? settings.excluded_brands
+          : JSON.parse(settings.excluded_brands || '[]');
+        excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b);
+        if (settings.company_name && typeof settings.company_name === 'string') {
+          const cn = settings.company_name.trim();
+          if (cn && !excludedBrands.some((b: string) => b.toLowerCase() === cn.toLowerCase())) {
+            excludedBrands.push(cn);
+          }
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Haric tutulan markalari Supabase'de filtrele (name ve company icinde arama)
+    // ILIKE wildcard karakterlerini escape et
+    for (const brand of excludedBrands) {
+      const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      query = query.not('name', 'ilike', `%${escaped}%`);
+      query = query.not('company', 'ilike', `%${escaped}%`);
+    }
 
     const { data, error, count } = await query;
 
@@ -118,6 +160,8 @@ function mapLeadToResponse(lead: any) {
     isActive: lead.is_active,
     source: lead.source,
     profilePicture: lead.profile_picture,
+    projectType: lead.project_type || null,
+    isCompetitor: lead.is_competitor ?? false,
     createdAt: lead.created_at,
     updatedAt: lead.updated_at,
     archivedAt: lead.archived_at,

@@ -87,6 +87,8 @@ export async function GET(
       isActive: lead.is_active,
       source: lead.source,
       profilePicture: lead.profile_picture,
+      projectType: lead.project_type || null,
+      isCompetitor: lead.is_competitor ?? false,
       createdAt: lead.created_at,
       updatedAt: lead.updated_at,
       archivedAt: lead.archived_at,

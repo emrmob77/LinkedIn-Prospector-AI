@@ -56,6 +56,8 @@ export async function POST(
       isActive: row.is_active,
       source: row.source,
       profilePicture: row.profile_picture,
+      projectType: row.project_type || null,
+      isCompetitor: row.is_competitor ?? false,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       archivedAt: row.archived_at ? new Date(row.archived_at) : null,
