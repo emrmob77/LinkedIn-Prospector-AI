@@ -54,8 +54,7 @@ export async function GET() {
       let filtered = q;
       for (const brand of excludedBrands) {
         const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
-        filtered = filtered.not('name', 'ilike', `%${escaped}%`);
-        filtered = filtered.not('company', 'ilike', `%${escaped}%`);
+        filtered = filtered.or(`company.not.ilike.%${escaped}%,company.is.null`);
       }
       return filtered;
     };

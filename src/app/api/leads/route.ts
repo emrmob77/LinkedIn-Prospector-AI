@@ -99,12 +99,11 @@ export async function GET(request: NextRequest) {
       }
     } catch { /* ignore */ }
 
-    // Haric tutulan markalari Supabase'de filtrele (name ve company icinde arama)
-    // ILIKE wildcard karakterlerini escape et
+    // Haric tutulan markalari Supabase'de filtrele (sadece company kolonunda)
+    // NOT ILIKE NULL satirlari disladigindan, company IS NULL olanlari da dahil et
     for (const brand of excludedBrands) {
       const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
-      query = query.not('name', 'ilike', `%${escaped}%`);
-      query = query.not('company', 'ilike', `%${escaped}%`);
+      query = query.or(`company.not.ilike.%${escaped}%,company.is.null`);
     }
 
     const { data, error, count } = await query;
