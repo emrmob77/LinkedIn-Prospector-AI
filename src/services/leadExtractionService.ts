@@ -29,6 +29,8 @@ interface LeadInsertData {
   is_active: boolean;
   source: LeadSource;
   profile_picture: string | null;
+  project_type: string | null;
+  is_competitor: boolean;
 }
 
 // ============================================
@@ -66,12 +68,14 @@ function sanitizeField(value: string | null | undefined): string | null {
     /[\d.]+\s*takipçi/i,          // "273.412 takipçi", "9.647 takipçi"
     /^\d[\d.,]+$/,                 // Sadece sayı
     /^followers?$/i,               // "followers"
-    /şirketi$/i,                   // "Muhiku şirketi" — sadece title alanında
   ];
   for (const pattern of garbagePatterns) {
     if (pattern.test(trimmed)) return null;
   }
-  return trimmed;
+  // "X şirketi" → "X" (null yapmak yerine suffix strip)
+  const stripped = trimmed.replace(/\s+şirketi$/i, '').trim();
+  if (stripped.length < 2) return null;
+  return stripped;
 }
 
 /**
@@ -101,11 +105,30 @@ function sanitizeName(name: string): string {
   return clean;
 }
 
-function isExtractablePost(post: Post): boolean {
+function isExtractablePost(post: Post, excludedBrands: string[] = []): boolean {
   if (!post.isRelevant) return false;
   if (!post.authorLinkedinUrl || post.authorLinkedinUrl.trim() === '') return false;
   if (!post.authorName || post.authorName.trim() === '') return false;
+
+  // Haric tutulan markalari kontrol et (case-insensitive includes)
+  if (excludedBrands.length > 0) {
+    const authorNameLower = post.authorName.toLowerCase();
+    const authorCompanyLower = (post.authorCompany || '').toLowerCase();
+    for (const brand of excludedBrands) {
+      const brandLower = brand.toLowerCase().trim();
+      if (!brandLower) continue;
+      if (authorNameLower.includes(brandLower) || authorCompanyLower.includes(brandLower)) {
+        return false;
+      }
+    }
+  }
+
   return true;
+}
+
+/** Post'un tema/hediye tipi bilgisinden proje tipi turetir */
+function deriveProjectType(post: Post): string | null {
+  return post.giftType || post.theme || null;
 }
 
 // ============================================
@@ -152,6 +175,8 @@ export async function checkDuplicateLead(
       isActive: data.is_active ?? true,
       source: data.source || DEFAULT_SOURCE,
       profilePicture: data.profile_picture || null,
+      projectType: data.project_type || null,
+      isCompetitor: data.is_competitor ?? false,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
       archivedAt: data.archived_at ? new Date(data.archived_at) : null,
@@ -178,10 +203,11 @@ export async function checkDuplicateLead(
 export async function extractLeadFromPost(
   post: Post,
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  excludedBrands: string[] = []
 ): Promise<'created' | 'updated' | 'skipped'> {
   // Cikarilabilirlik kontrolu
-  if (!isExtractablePost(post)) {
+  if (!isExtractablePost(post, excludedBrands)) {
     return 'skipped';
   }
 
@@ -229,6 +255,12 @@ export async function extractLeadFromPost(
         updatePayload.profile_picture = post.authorProfilePicture;
       }
 
+      // Project type eksikse post'tan turet
+      if (!existingLead.projectType) {
+        const projectType = deriveProjectType(post);
+        if (projectType) updatePayload.project_type = projectType;
+      }
+
       const { error: updateError } = await supabase
         .from('leads')
         .update(updatePayload)
@@ -264,6 +296,8 @@ export async function extractLeadFromPost(
       is_active: true,
       source: DEFAULT_SOURCE,
       profile_picture: post.authorProfilePicture || null,
+      project_type: deriveProjectType(post),
+      is_competitor: false,
     };
 
     const { data: newLead, error: insertError } = await supabase
@@ -333,14 +367,15 @@ export async function extractLeadFromPost(
 export async function extractLeadsBatch(
   posts: Post[],
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  excludedBrands: string[] = []
 ): Promise<LeadExtractionResult> {
   let created = 0;
   let updated = 0;
   let skipped = 0;
 
   for (const post of posts) {
-    const result = await extractLeadFromPost(post, supabase, userId);
+    const result = await extractLeadFromPost(post, supabase, userId, excludedBrands);
 
     switch (result) {
       case 'created':

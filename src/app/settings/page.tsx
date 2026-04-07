@@ -104,6 +104,10 @@ export default function SettingsPage() {
   const [targetCustomer, setTargetCustomer] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
 
+  // Haric tutulan markalar
+  const [excludedBrands, setExcludedBrands] = useState<string[]>([]);
+  const [brandInput, setBrandInput] = useState("");
+
   // AI Prompt alanları
   const PROMPT_DEFAULTS = {
     classificationPrompt: "Kurumsal hediye, promosyon ürünleri, çalışan motivasyonu, etkinlik organizasyonu ile ilgili postları ilgili olarak işaretle. B2B hediye alımı sinyallerini ve rakip firma aktivitelerini de yakala.",
@@ -129,6 +133,7 @@ export default function SettingsPage() {
         setProductDescription(data.productDescription);
         setTargetCustomer(data.targetCustomer);
         setCompanyWebsite(data.companyWebsite || "");
+        setExcludedBrands(data.excludedBrands || []);
         setClassificationPrompt(data.classificationPrompt || PROMPT_DEFAULTS.classificationPrompt);
         setCompanyContext(data.companyContext || PROMPT_DEFAULTS.companyContext);
         setMessagePrompt(data.messagePrompt || PROMPT_DEFAULTS.messagePrompt);
@@ -147,6 +152,7 @@ export default function SettingsPage() {
       const body: Record<string, unknown> = {
         aiProvider, aiModel, aiTemperature, autoClassify,
         companyName, companySector, productDescription, targetCustomer, companyWebsite,
+        excludedBrands,
         classificationPrompt, companyContext, messagePrompt,
       };
       if (keys.anthropicKey.trim()) body.anthropicApiKey = keys.anthropicKey.trim();
@@ -404,6 +410,60 @@ export default function SettingsPage() {
                     {classificationPrompt.length}/1000
                   </span>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Haric Tutulan Markalar */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Haric Tutulan Markalar</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  Kendi markaniz ve pipeline&apos;da gormek istemediginiz markalar. Bu markalardan gelen postlar lead olarak cikarilmaz.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Marka adi yazin ve Enter'a basin..."
+                    value={brandInput}
+                    onChange={(e) => setBrandInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && brandInput.trim()) {
+                        e.preventDefault();
+                        const brand = brandInput.trim();
+                        if (!excludedBrands.some((b) => b.toLowerCase() === brand.toLowerCase())) {
+                          setExcludedBrands((prev) => [...prev, brand]);
+                        }
+                        setBrandInput("");
+                      }
+                    }}
+                    className="text-xs"
+                  />
+                </div>
+                {excludedBrands.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {excludedBrands.map((brand, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs gap-1 pr-1">
+                        {brand}
+                        <button
+                          type="button"
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          onClick={() => setExcludedBrands((prev) => prev.filter((_, idx) => idx !== i))}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {excludedBrands.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Henuz marka eklenmedi. Firma adiniz ({companyName || "belirtilmemis"}) otomatik olarak haric tutulur.
+                  </p>
+                )}
               </CardContent>
             </Card>
 

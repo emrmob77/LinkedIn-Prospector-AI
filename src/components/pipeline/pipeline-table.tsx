@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Filter, ChevronRight, ChevronLeft, FileText } from "lucide-react";
+import { Search, Filter, ChevronRight, ChevronLeft, FileText, Swords } from "lucide-react";
 
 // DB'deki stage değerleri (Türkçe)
 const API_STAGES = [
@@ -78,6 +78,8 @@ export interface LeadData {
   isActive: boolean;
   source: string;
   profilePicture: string | null;
+  projectType: string | null;
+  isCompetitor: boolean;
   createdAt: string;
   updatedAt: string;
   firstPost?: {
@@ -199,6 +201,7 @@ export function PipelineTable({
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[250px]">Lead</TableHead>
                 <TableHead>Sirket</TableHead>
+                <TableHead>Proje Amaci</TableHead>
                 <TableHead className="text-center">Skor</TableHead>
                 <TableHead>Asama</TableHead>
                 <TableHead className="text-center">Gonderi</TableHead>
@@ -221,6 +224,7 @@ export function PipelineTable({
                       </div>
                     </TableCell>
                     <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
                     <TableCell className="text-center"><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
@@ -230,7 +234,7 @@ export function PipelineTable({
                 ))
               ) : filteredLeads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="h-8 w-8 text-muted-foreground/50" />
                       <p className="text-sm text-muted-foreground">
@@ -274,7 +278,23 @@ export function PipelineTable({
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{lead.company || "-"}</TableCell>
+                      <TableCell className="text-sm">
+                        <div className="flex items-center gap-1.5">
+                          {lead.company || "-"}
+                          {lead.isCompetitor && (
+                            <span title="Rakip"><Swords className="h-3.5 w-3.5 text-red-500 shrink-0" /></span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {lead.projectType ? (
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {lead.projectType}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Badge className={`font-mono text-xs ${getScoreColor(lead.score)}`}>
                           {lead.score}
