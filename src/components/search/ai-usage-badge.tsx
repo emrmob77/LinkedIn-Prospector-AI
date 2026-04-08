@@ -64,7 +64,12 @@ export function AIUsageBadge({ refreshTrigger = 0, onLimitReached }: AIUsageBadg
   }, [fetchUsage, refreshTrigger]);
 
   // OpenRouter degilse veya hata varsa gosterme
-  if (!loading && (error || !data || data.provider !== "openrouter" || !data.isFree)) {
+  if (!loading && (error || !data || data.provider !== "openrouter")) {
+    return null;
+  }
+
+  // Ucretli plan — limit gostermeye gerek yok
+  if (!loading && data && !data.isFree) {
     return null;
   }
 
