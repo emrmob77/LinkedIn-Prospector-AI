@@ -49,8 +49,25 @@ async function handler(request: NextRequest) {
       );
     }
 
-    // Postlari cek
-    let query = supabase
+    // Postlari cek — supabaseAdmin kullanarak RLS bypass
+    // Guvenligi: once search_run sahipligini dogrula, sonra postlari cek
+    if (searchRunId) {
+      const { data: run } = await supabaseAdmin
+        .from('search_runs')
+        .select('id')
+        .eq('id', searchRunId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!run) {
+        return NextResponse.json(
+          { error: 'Arama sonucu bulunamadı veya erişim yetkiniz yok' },
+          { status: 403 }
+        );
+      }
+    }
+
+    let query = supabaseAdmin
       .from('posts')
       .select('*');
 
@@ -60,6 +77,7 @@ async function handler(request: NextRequest) {
         .eq('search_run_id', searchRunId)
         .is('classified_at', null);
     } else if (postIds) {
+      // postIds ile filtreleme — sahiplik kontrolu icin search_runs join
       query = query.in('id', postIds);
     }
 
@@ -298,6 +316,15 @@ async function handler(request: NextRequest) {
         });
       } catch (bgError) {
         console.error('Arka plan siniflandirma hatasi:', bgError);
+        // Hata durumunda da activity log kaydet
+        logActivity({
+          supabase: supabaseAdmin,
+          actionType: 'post_classified',
+          userId,
+          entityType: 'search_run',
+          entityId: searchRunId,
+          details: { classified: 0, relevant: 0, irrelevant: 0, error: bgError instanceof Error ? bgError.message : String(bgError) },
+        });
       }
     })();
 
