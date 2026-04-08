@@ -1,6 +1,14 @@
 import type { AIClient, VisionImageInput } from '@/lib/ai-client';
 import type { ImageAnalysisResult } from '@/types/models';
-import { DEFAULT_MODELS } from '@/lib/ai-client';
+import type { AIProvider } from '@/types/models';
+
+// Gorsel analiz icin vision destekli modeller (provider bazli)
+const VISION_MODELS: Record<AIProvider, string> = {
+  anthropic: 'claude-sonnet-4-20250514',
+  openai: 'gpt-4o',
+  google: 'gemini-2.0-flash',
+  openrouter: 'google/gemma-4-26b-a4b-it', // ucuz, vision destekli
+};
 
 // ============================================
 // Görsel Analiz Servisi
@@ -61,7 +69,8 @@ export async function analyzePostImages(
   const systemPrompt = buildSystemPrompt(companyContext);
   const userMessage = buildUserMessage(urls.length);
 
-  const model = DEFAULT_MODELS[aiClient.provider];
+  // Kullanicinin sectiyi model vision desteklemeyebilir, vision model kullan
+  const model = VISION_MODELS[aiClient.provider];
 
   const result = await aiClient.chatWithVision({
     model,
