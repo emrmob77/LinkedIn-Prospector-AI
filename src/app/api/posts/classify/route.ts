@@ -8,8 +8,9 @@ import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Post, Lead } from '@/types/models';
 import { logActivity } from '@/services/activityLogService';
+import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     // Auth kontrolu
     const cookieStore = cookies();
@@ -323,3 +324,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handler, AI_RATE_LIMIT);

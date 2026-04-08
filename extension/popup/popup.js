@@ -467,13 +467,35 @@
       var comments = formatNumber(post.engagementComments || post.commentCount || 0);
       var shares = formatNumber(post.engagementShares || post.shareCount || 0);
 
+      // Hashtag'ler (varsa)
+      var hashtagsHtml = '';
+      if (post.hashtags && post.hashtags.length > 0) {
+        var tags = post.hashtags.slice(0, 3); // Ilk 3 hashtag
+        hashtagsHtml = '<div class="post-hashtags">';
+        tags.forEach(function (tag) {
+          hashtagsHtml += '<span class="post-hashtag">#' + escapeHtml(tag) + '</span>';
+        });
+        if (post.hashtags.length > 3) {
+          hashtagsHtml += '<span class="post-hashtag-more">+' + (post.hashtags.length - 3) + '</span>';
+        }
+        hashtagsHtml += '</div>';
+      }
+
+      // Sirket bilgisi (varsa)
+      var companyHtml = '';
+      if (post.authorCompany) {
+        companyHtml = '<div class="post-author-company">' + escapeHtml(post.authorCompany) + '</div>';
+      }
+
       div.innerHTML =
         '<div class="post-author-row">' +
           '<div class="post-author-avatar">' + escapeHtml(initials) + '</div>' +
           '<span class="post-author-name">' + escapeHtml(authorName) + '</span>' +
         '</div>' +
         (authorTitle ? '<div class="post-author-title">' + escapeHtml(authorTitle) + '</div>' : '') +
+        companyHtml +
         (preview ? '<div class="post-content-preview">' + escapeHtml(preview) + '</div>' : '') +
+        hashtagsHtml +
         '<div class="post-stats-row">' +
           '<span class="post-stat">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-6 0v1"/><path d="M18 8h-5a2 2 0 0 0-2 2v6.5a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V10a2 2 0 0 0-2-2z"/></svg>' +

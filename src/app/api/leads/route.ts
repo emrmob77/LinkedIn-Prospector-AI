@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getExcludedBrands, applyBrandFilter } from '@/lib/brand-filter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,34 +77,8 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     // Haric tutulan markalari cek ve sorguya ekle
-    let excludedBrands: string[] = [];
-    try {
-      const { data: settings } = await supabaseAdmin
-        .from('user_settings')
-        .select('excluded_brands, company_name')
-        .eq('user_id', user.id)
-        .single();
-
-      if (settings) {
-        const brands = Array.isArray(settings.excluded_brands)
-          ? settings.excluded_brands
-          : JSON.parse(settings.excluded_brands || '[]');
-        excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b);
-        if (settings.company_name && typeof settings.company_name === 'string') {
-          const cn = settings.company_name.trim();
-          if (cn && !excludedBrands.some((b: string) => b.toLowerCase() === cn.toLowerCase())) {
-            excludedBrands.push(cn);
-          }
-        }
-      }
-    } catch { /* ignore */ }
-
-    // Haric tutulan markalari Supabase'de filtrele (sadece company kolonunda)
-    // NOT ILIKE NULL satirlari disladigindan, company IS NULL olanlari da dahil et
-    for (const brand of excludedBrands) {
-      const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
-      query = query.or(`company.not.ilike.%${escaped}%,company.is.null`);
-    }
+    const excludedBrands = await getExcludedBrands(user.id);
+    query = applyBrandFilter(query, excludedBrands);
 
     const { data, error, count } = await query;
 

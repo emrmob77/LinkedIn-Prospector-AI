@@ -7,7 +7,16 @@ import { SearchResults } from "@/components/search/search-results";
 import type { PostCardData } from "@/components/search/post-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Puzzle,
   Bot,
@@ -16,6 +25,10 @@ import {
   ChevronDown,
   ChevronUp,
   Star,
+  Bookmark,
+  BookmarkPlus,
+  Trash2,
+  Search,
 } from "lucide-react";
 
 interface ImportHistoryItem {
@@ -26,6 +39,16 @@ interface ImportHistoryItem {
   status: string;
   postsFound: number;
   createdAt: string;
+}
+
+interface SavedSearchItem {
+  id: string;
+  name: string;
+  description: string | null;
+  keywords: string[];
+  maxPosts: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function SearchPage() {
@@ -39,6 +62,17 @@ export default function SearchPage() {
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Kaydedilmis Aramalar state
+  const [savedSearches, setSavedSearches] = useState<SavedSearchItem[]>([]);
+  const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
+  const [savedSearchesExpanded, setSavedSearchesExpanded] = useState(true);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDialogRunId, setSaveDialogRunId] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saveDescription, setSaveDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // localStorage'dan favorileri yukle
   useEffect(() => {
@@ -84,6 +118,20 @@ export default function SearchPage() {
     }
   }, []);
 
+  // Kaydedilmis aramalari cek
+  const fetchSavedSearches = useCallback(async () => {
+    try {
+      const res = await fetch("/api/saved-searches");
+      if (!res.ok) return;
+      const data = await res.json();
+      setSavedSearches(data.searches || []);
+    } catch {
+      // sessizce gec
+    } finally {
+      setSavedSearchesLoading(false);
+    }
+  }, []);
+
   const loadRunPosts = useCallback(
     async (runId: string) => {
       if (loadingRunId) return;
@@ -108,7 +156,7 @@ export default function SearchPage() {
     [loadingRunId]
   );
 
-  // Sınıflandırılmamış postlar varsa otomatik classify başlat
+  // Siniflandirilmamis postlar varsa otomatik classify baslat
   const autoClassifyRef = useRef(false);
 
   const triggerAutoClassify = useCallback(async (runId: string, loadedPosts: PostCardData[]) => {
@@ -118,7 +166,7 @@ export default function SearchPage() {
 
     autoClassifyRef.current = true;
 
-    // Polling başlat
+    // Polling baslat
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/search/${runId}/posts`);
@@ -129,7 +177,7 @@ export default function SearchPage() {
       } catch { /* sessiz */ }
     }, 5000);
 
-    // Sınıflandırmayı tetikle (arka planda)
+    // Siniflandirmayi tetikle (arka planda)
     try {
       await fetch("/api/posts/classify", {
         method: "POST",
@@ -138,7 +186,7 @@ export default function SearchPage() {
       });
     } catch { /* sessiz */ }
 
-    // Polling durdur, son veriyi çek
+    // Polling durdur, son veriyi cek
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
@@ -170,7 +218,7 @@ export default function SearchPage() {
               setPosts(loadedPosts);
               setActiveRunId(latest.id);
 
-              // Sınıflandırılmamış post varsa otomatik başlat
+              // Siniflandirilmamis post varsa otomatik baslat
               triggerAutoClassify(latest.id, loadedPosts);
             }
           } catch {
@@ -182,6 +230,7 @@ export default function SearchPage() {
       }
     };
     init();
+    fetchSavedSearches();
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
@@ -197,6 +246,88 @@ export default function SearchPage() {
       minute: "2-digit",
     });
   };
+
+  // Kaydetme dialog'unu ac
+  const openSaveDialog = useCallback((runId: string) => {
+    const item = history.find((h) => h.id === runId);
+    setSaveDialogRunId(runId);
+    setSaveName(
+      item?.keywords?.join(", ") || ""
+    );
+    setSaveDescription("");
+    setSaveDialogOpen(true);
+  }, [history]);
+
+  // Arama kaydet
+  const handleSaveSearch = useCallback(async () => {
+    if (!saveDialogRunId || !saveName.trim()) return;
+    setSaving(true);
+
+    const item = history.find((h) => h.id === saveDialogRunId);
+    const keywords = item?.keywords || saveName.split(",").map((k) => k.trim()).filter(Boolean);
+
+    try {
+      const res = await fetch("/api/saved-searches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: saveName.trim(),
+          description: saveDescription.trim() || null,
+          keywords,
+          maxPosts: 50,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSavedSearches((prev) => [data.search, ...prev]);
+        setSaveDialogOpen(false);
+        setSaveName("");
+        setSaveDescription("");
+      }
+    } catch {
+      // sessiz
+    } finally {
+      setSaving(false);
+    }
+  }, [saveDialogRunId, saveName, saveDescription, history]);
+
+  // Kaydedilmis aramayi sil
+  const handleDeleteSavedSearch = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingId(id);
+
+    try {
+      const res = await fetch(`/api/saved-searches/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+      }
+    } catch {
+      // sessiz
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
+
+  // Kaydedilmis aramaya tiklaninca ilgili import'u bul ve postlari yukle
+  const handleSavedSearchClick = useCallback(
+    (savedSearch: SavedSearchItem) => {
+      // Keyword'leri eslesen en son import'u bul
+      const matchingRun = history.find((h) => {
+        if (!h.keywords || h.postsFound === 0 || h.status === "failed") return false;
+        const savedKws = new Set(savedSearch.keywords.map((k) => k.toLowerCase()));
+        return h.keywords.some((k) => savedKws.has(k.toLowerCase()));
+      });
+
+      if (matchingRun) {
+        loadRunPosts(matchingRun.id);
+      }
+    },
+    [history, loadRunPosts]
+  );
 
   const activeItem = history.find((h) => h.id === activeRunId);
 
@@ -216,8 +347,99 @@ export default function SearchPage() {
       description="Chrome Extension ile LinkedIn gönderilerini içe aktarın"
     >
       <div className="space-y-3">
-        {/* Rehber — tek satır */}
+        {/* Rehber — tek satir */}
         <SearchForm />
+
+        {/* Kaydedilmis Aramalar */}
+        <div className="rounded-lg border bg-card">
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <button
+              onClick={() => setSavedSearchesExpanded(!savedSearchesExpanded)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Bookmark className="h-3.5 w-3.5" />
+              Kaydedilmis Aramalar
+              {savedSearches.length > 0 && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                  {savedSearches.length}
+                </Badge>
+              )}
+              {savedSearchesExpanded ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+            {activeRunId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[11px] gap-1 px-2"
+                onClick={() => openSaveDialog(activeRunId)}
+              >
+                <BookmarkPlus className="h-3 w-3" />
+                Aramayi Kaydet
+              </Button>
+            )}
+          </div>
+
+          {savedSearchesExpanded && (
+            <div className="px-2 py-1.5">
+              {savedSearchesLoading ? (
+                <div className="flex gap-2 p-1">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-7 w-32" />
+                  ))}
+                </div>
+              ) : savedSearches.length === 0 ? (
+                <div className="flex items-center gap-2 py-2 justify-center text-muted-foreground">
+                  <Search className="h-3.5 w-3.5" />
+                  <span className="text-xs">
+                    Henuz kaydedilmis arama yok
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {savedSearches.map((item) => (
+                    <div key={item.id} className="flex items-center gap-0.5 group">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[11px] gap-1.5 px-2.5"
+                        onClick={() => handleSavedSearchClick(item)}
+                        disabled={loadingRunId !== null}
+                        title={item.description || item.name}
+                      >
+                        <Bookmark className="h-3 w-3 text-blue-500" />
+                        <span className="max-w-[120px] truncate">{item.name}</span>
+                        {item.keywords.length > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[9px] px-1 py-0 h-4 ml-0.5"
+                          >
+                            {item.keywords.length} kw
+                          </Badge>
+                        )}
+                      </Button>
+                      <button
+                        onClick={(e) => handleDeleteSavedSearch(item.id, e)}
+                        className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all"
+                        title="Sil"
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Import History — kompakt */}
         <div className="rounded-lg border bg-card">
@@ -341,7 +563,7 @@ export default function SearchPage() {
             posts={posts}
             searchRunId={activeRunId}
             onClassifyStart={() => {
-              // Her 5 saniyede postları yenile (progress bar güncellenir)
+              // Her 5 saniyede postlari yenile (progress bar guncellenir)
               if (pollingRef.current) clearInterval(pollingRef.current);
               pollingRef.current = setInterval(async () => {
                 if (!activeRunId) return;
@@ -366,6 +588,83 @@ export default function SearchPage() {
           />
         )}
       </div>
+
+      {/* Arama Kaydetme Dialog'u */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aramayi Kaydet</DialogTitle>
+            <DialogDescription>
+              Bu aramayi kaydederek daha sonra kolayca erisebilirsiniz.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Arama Adi *
+              </label>
+              <Input
+                placeholder="ör. React Gelistiriciler"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Aciklama (opsiyonel)
+              </label>
+              <Input
+                placeholder="ör. Freelance React gelisitircileri ariyorum"
+                value={saveDescription}
+                onChange={(e) => setSaveDescription(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            {/* Keyword'leri goster */}
+            {saveDialogRunId && (() => {
+              const item = history.find((h) => h.id === saveDialogRunId);
+              if (!item?.keywords?.length) return null;
+              return (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Anahtar Kelimeler
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    {item.keywords.map((kw, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {kw}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSaveDialogOpen(false)}
+              disabled={saving}
+            >
+              Iptal
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveSearch}
+              disabled={saving || !saveName.trim()}
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <BookmarkPlus className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
