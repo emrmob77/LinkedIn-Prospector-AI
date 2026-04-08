@@ -127,22 +127,46 @@ async function callAI(
 ): Promise<string> {
   try {
     const defaultModel = DEFAULT_MODELS[client.provider] || AI_MODEL;
+    const modelToUse = client.model || defaultModel;
+    console.log(`[callAI] provider=${client.provider}, model=${modelToUse}, temperature=${temperature}`);
+
     const result = await client.chat({
-      model: client.model || defaultModel,
+      model: modelToUse,
       maxTokens: 1024,
       temperature,
       systemPrompt,
       userMessage: userPrompt,
     });
+
+    if (!result.text || result.text.trim().length === 0) {
+      console.error(`[callAI] AI bos yanit dondu — provider=${client.provider}, model=${modelToUse}`);
+      throw new Error(`AI bos yanit dondu (provider=${client.provider}, model=${modelToUse})`);
+    }
+
+    console.log(`[callAI] Basarili — yanit uzunlugu: ${result.text.length} karakter`);
     return result.text;
   } catch (error: unknown) {
+    // Detayli hata loglama
+    if (error instanceof Error) {
+      const statusCode = 'status' in error ? (error as { status: number }).status : undefined;
+      const errorCode = 'code' in error ? (error as { code: string }).code : undefined;
+      console.error(`[callAI] HATA — provider=${client.provider}, status=${statusCode}, code=${errorCode}, message=${error.message}`);
+
+      // Error response body varsa logla (OpenAI SDK hatalari)
+      if ('error' in error) {
+        console.error(`[callAI] Error body:`, JSON.stringify((error as Record<string, unknown>).error, null, 2));
+      }
+    } else {
+      console.error(`[callAI] Bilinmeyen hata turu:`, error);
+    }
+
     const isRateLimit =
       error instanceof Error &&
       ('status' in error && (error as { status: number }).status === 429);
 
     if (isRateLimit && retryCount < MAX_RETRIES) {
       const delay = RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
-      console.warn(`Rate limit, ${delay}ms sonra tekrar deneniyor (deneme ${retryCount + 1}/${MAX_RETRIES})`);
+      console.warn(`[callAI] Rate limit, ${delay}ms sonra tekrar deneniyor (deneme ${retryCount + 1}/${MAX_RETRIES})`);
       await sleep(delay);
       return callAI(client, systemPrompt, userPrompt, temperature, retryCount + 1);
     }
@@ -156,20 +180,29 @@ async function callAI(
  */
 function parseJsonResponse<T>(text: string): T {
   let cleaned = text.trim();
-  // Markdown code block temizle
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+
+  // Markdown code block temizle (```json ... ``` veya ``` ... ```)
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
   }
+
   // JSON bloğunu bul (bazen AI önüne/arkasına metin ekliyor)
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     cleaned = jsonMatch[0];
   }
+
+  // Bazen free modeller JSON icinde trailing comma birakir — temizle
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
   try {
     return JSON.parse(cleaned) as T;
-  } catch {
-    console.error('AI yanıtı JSON parse edilemedi:', text.slice(0, 200));
-    throw new Error('AI yanıtı geçerli JSON formatında değil');
+  } catch (parseError) {
+    console.error(`[parseJsonResponse] JSON parse hatasi — input (ilk 500 char): ${text.slice(0, 500)}`);
+    console.error(`[parseJsonResponse] Temizlenmis input (ilk 500 char): ${cleaned.slice(0, 500)}`);
+    console.error(`[parseJsonResponse] Parse error:`, parseError instanceof Error ? parseError.message : parseError);
+    throw new Error(`AI yaniti gecerli JSON formatinda degil. Yanit basi: "${text.slice(0, 100)}"`);
   }
 }
 
@@ -200,8 +233,9 @@ export async function classifyPost(post: Post, client: AIClient, ctx: BusinessCo
       reasoning: result.reasoning || '',
     };
   } catch (error) {
-    console.error('Post siniflandirma hatasi:', error, { postId: post.id });
-    // Hata durumunda null döndür — post sınıflandırılmamış kalır, tekrar denenebilir
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[classifyPost] HATA — postId=${post.id}, author=${post.authorName}, error=${errMsg}`);
+    // Post sınıflandırılmamış kalır, tekrar denenebilir
     throw error;
   }
 }
@@ -281,6 +315,9 @@ export async function classifyPostsBatch(
   let classified = 0;
   let relevant = 0;
   let irrelevant = 0;
+  const errors: string[] = [];
+
+  console.log(`[classifyPostsBatch] Baslatiliyor — ${posts.length} post, provider=${client.provider}, model=${client.model}`);
 
   for (let i = 0; i < posts.length; i++) {
     const post = posts[i];
@@ -294,6 +331,8 @@ export async function classifyPostsBatch(
       } else {
         irrelevant++;
       }
+
+      console.log(`[classifyPostsBatch] Post ${i + 1}/${posts.length} siniflandirildi — id=${post.id}, relevant=${classification.isRelevant}, confidence=${classification.confidence}`);
 
       // Sonucu DB'ye kaydet
       const { error: updateError } = await supabase
@@ -310,16 +349,23 @@ export async function classifyPostsBatch(
         .eq('id', post.id);
 
       if (updateError) {
-        console.error('Post siniflandirma DB guncelleme hatasi:', updateError, { postId: post.id });
+        console.error(`[classifyPostsBatch] DB guncelleme hatasi — postId=${post.id}:`, updateError);
       }
     } catch (error) {
-      console.error('Batch siniflandirma hatasi (post atlanıyor):', error, { postId: post.id });
+      const errMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`post=${post.id}: ${errMsg}`);
+      console.error(`[classifyPostsBatch] Post ${i + 1}/${posts.length} HATA (atlaniyor) — postId=${post.id}, error=${errMsg}`);
     }
 
     // Son post degilse bekleme yap (rate limit korumasi)
     if (i < posts.length - 1) {
       await sleep(BATCH_DELAY_MS);
     }
+  }
+
+  console.log(`[classifyPostsBatch] Tamamlandi — classified=${classified}, relevant=${relevant}, irrelevant=${irrelevant}, errors=${errors.length}`);
+  if (errors.length > 0) {
+    console.error(`[classifyPostsBatch] Hata ozeti:`, errors.join(' | '));
   }
 
   return { classified, relevant, irrelevant };
