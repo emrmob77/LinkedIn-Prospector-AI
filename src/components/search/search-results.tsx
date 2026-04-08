@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PostCard, PostCardData } from "./post-card";
-import { AIUsageBadge } from "./ai-usage-badge";
+
 import {
   Eye,
   EyeOff,
@@ -218,8 +218,6 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
   const [viewMode, setViewMode] = useState<ViewMode>("3");
   const [classifying, setClassifying] = useState(false);
   const [classifyMessage, setClassifyMessage] = useState<string | null>(null);
-  const [limitReached, setLimitReached] = useState(false);
-  const [usageRefreshTrigger, setUsageRefreshTrigger] = useState(0);
 
   const relevantCount = posts.filter((p) => p.isRelevant === true).length;
   const irrelevantCount = posts.filter((p) => p.isRelevant === false).length;
@@ -261,8 +259,6 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
         );
       }
       onClassifyComplete?.(result as ClassifyResult);
-      // Siniflandirma sonrasi usage'i yenile
-      setUsageRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       setClassifyMessage(
         err instanceof Error ? err.message : "Siniflandirma hatasi"
@@ -287,44 +283,32 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {/* AI Siniflandirma butonu + Usage badge */}
+            {/* AI Siniflandirma butonu */}
             {searchRunId && (
-              <>
-                <Button
-                  variant={allClassified ? "outline" : "default"}
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={handleClassify}
-                  disabled={classifying || allClassified || limitReached}
-                  title={limitReached ? "Gunluk API limiti doldu" : undefined}
-                >
-                  {classifying ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Siniflandiriliyor...
-                    </>
-                  ) : allClassified ? (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      Siniflandirildi
-                    </>
-                  ) : limitReached ? (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 opacity-50" />
-                      Limit Doldu
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      AI ile Siniflandir
-                    </>
-                  )}
-                </Button>
-                <AIUsageBadge
-                  refreshTrigger={usageRefreshTrigger}
-                  onLimitReached={setLimitReached}
-                />
-              </>
+              <Button
+                variant={allClassified ? "outline" : "default"}
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleClassify}
+                disabled={classifying || allClassified}
+              >
+                {classifying ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Siniflandiriliyor...
+                  </>
+                ) : allClassified ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    Siniflandirildi
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI ile Siniflandir
+                  </>
+                )}
+              </Button>
             )}
 
               {/* Ilgili/Ilgisiz/Bekliyor badge'leri */}
