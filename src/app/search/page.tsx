@@ -370,17 +370,16 @@ export default function SearchPage() {
                 <ChevronDown className="h-3 w-3" />
               )}
             </button>
-            {activeRunId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[11px] gap-1 px-2"
-                onClick={() => openSaveDialog(activeRunId)}
-              >
-                <BookmarkPlus className="h-3 w-3" />
-                Aramayi Kaydet
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 px-3"
+              onClick={() => activeRunId && openSaveDialog(activeRunId)}
+              disabled={!activeRunId}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              Aramayi Kaydet
+            </Button>
           </div>
 
           {savedSearchesExpanded && (
