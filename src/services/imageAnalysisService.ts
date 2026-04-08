@@ -57,7 +57,8 @@ export async function analyzePostImages(
   aiClient: AIClient,
   imageUrls: string[],
   companyContext: CompanyContext,
-  maxImages = 3
+  maxImages = 3,
+  overrideModel?: string
 ): Promise<ImageAnalysisResult> {
   const urls = imageUrls.slice(0, maxImages);
 
@@ -69,8 +70,8 @@ export async function analyzePostImages(
   const systemPrompt = buildSystemPrompt(companyContext);
   const userMessage = buildUserMessage(urls.length);
 
-  // Kullanicinin sectiyi model vision desteklemeyebilir, vision model kullan
-  const model = VISION_MODELS[aiClient.provider];
+  // Kullanicinin sectigi vision model varsa onu kullan, yoksa provider default
+  const model = overrideModel || VISION_MODELS[aiClient.provider];
 
   const result = await aiClient.chatWithVision({
     model,

@@ -56,6 +56,7 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
       openrouterKeyHint: null,
       aiProvider: 'anthropic',
       aiModel: null,
+      visionModel: null,
       aiTemperature: 0.3,
       autoClassify: true,
       companyName: DEFAULTS.companyName,
@@ -93,6 +94,7 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
     openrouterKeyHint: getKeyHint(row.openrouter_api_key_encrypted as string | null),
     aiProvider: (row.ai_provider as AIProvider) || 'anthropic',
     aiModel: (row.ai_model as string) || null,
+    visionModel: (row.vision_model as string) || null,
     aiTemperature: Number(row.ai_temperature ?? 0.3),
     autoClassify: row.auto_classify !== false,
     companyName: (row.company_name as string) || DEFAULTS.companyName,
@@ -150,6 +152,7 @@ export async function PUT(request: NextRequest) {
       openrouterApiKey,
       aiProvider,
       aiModel,
+      visionModel,
       aiTemperature,
       autoClassify,
       companyName,
@@ -168,6 +171,7 @@ export async function PUT(request: NextRequest) {
       openrouterApiKey?: string;
       aiProvider?: AIProvider;
       aiModel?: string;
+      visionModel?: string;
       aiTemperature?: number;
       autoClassify?: boolean;
       companyName?: string;
@@ -210,6 +214,10 @@ export async function PUT(request: NextRequest) {
 
     if (aiModel !== undefined) {
       updates.ai_model = aiModel.trim() || null;
+    }
+
+    if (visionModel !== undefined) {
+      updates.vision_model = visionModel.trim() || null;
     }
 
     if (aiTemperature !== undefined) {

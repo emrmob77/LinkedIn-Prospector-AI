@@ -174,6 +174,7 @@ export interface UserSettings {
   openrouterApiKey: string | null;
   aiProvider: AIProvider;
   aiModel: string | null;
+  visionModel: string | null;
   aiTemperature: number;
   autoClassify: boolean;
   companyName: string;
@@ -201,6 +202,7 @@ export interface UserSettingsPublic {
   openrouterKeyHint: string | null;
   aiProvider: AIProvider;
   aiModel: string | null;
+  visionModel: string | null;
   aiTemperature: number;
   autoClassify: boolean;
   // Firma bilgileri
