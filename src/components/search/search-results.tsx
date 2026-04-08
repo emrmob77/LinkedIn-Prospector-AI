@@ -33,17 +33,12 @@ import {
 
 type ViewMode = "2" | "3" | "4" | "list";
 
-interface ClassifyResult {
-  classified: number;
-  relevant: number;
-  irrelevant: number;
-}
 
 interface SearchResultsProps {
   posts: PostCardData[];
   searchRunId?: string | null;
   onClassifyStart?: () => void;
-  onClassifyComplete?: (result: ClassifyResult) => void;
+  onClassifyComplete?: () => void;
 }
 
 const viewModeOptions: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
@@ -213,8 +208,7 @@ function ListItem({ post }: { post: PostCardData }) {
   );
 }
 
-export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyComplete: _onClassifyComplete }: SearchResultsProps) {
-  void _onClassifyComplete; // kept for interface compat
+export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyComplete }: SearchResultsProps) {
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("3");
   const [classifying, setClassifying] = useState(false);
@@ -227,13 +221,14 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
   const allClassified = classifiedCount === posts.length && posts.length > 0;
   const totalCount = posts.length;
 
-  // Arka plan siniflandirma tamamlaninca classifying'i kapat
+  // Arka plan siniflandirma tamamlaninca classifying'i kapat ve polling'i durdur
   useEffect(() => {
     if (classifying && allClassified) {
       setClassifying(false);
       setClassifyMessage(`${totalCount} post siniflandirildi, ${relevantCount} ilgili bulundu`);
+      onClassifyComplete?.();
     }
-  }, [classifying, allClassified, totalCount, relevantCount]);
+  }, [classifying, allClassified, totalCount, relevantCount, onClassifyComplete]);
 
   const filteredPosts = showOnlyRelevant
     ? posts.filter((p) => p.isRelevant === true)
