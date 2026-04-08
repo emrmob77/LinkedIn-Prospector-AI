@@ -49,7 +49,8 @@ export async function GET(
          author_type, linkedin_post_url, linkedin_urn,
          engagement_likes, engagement_comments, engagement_shares,
          published_at, images,
-         is_relevant, relevance_confidence, theme`
+         is_relevant, relevance_confidence, theme,
+         image_analysis, image_analyzed_at`
       )
       .eq('search_run_id', runId)
       .order('published_at', { ascending: false });
@@ -65,6 +66,7 @@ export async function GET(
     // snake_case -> camelCase mapping (PostCardData interface'ine uygun)
     const mappedPosts = (posts || []).map((post) => ({
       id: post.linkedin_urn || post.id,
+      dbId: post.id,
       authorName: post.author_name || '',
       authorTitle: post.author_title || '',
       authorCompany: post.author_company || '',
@@ -83,6 +85,8 @@ export async function GET(
       isRelevant: post.is_relevant ?? null,
       relevanceConfidence: post.relevance_confidence ?? null,
       theme: post.theme ?? null,
+      imageAnalysis: post.image_analysis ?? null,
+      imageAnalyzedAt: post.image_analyzed_at ?? null,
     }));
 
     return NextResponse.json({ posts: mappedPosts });

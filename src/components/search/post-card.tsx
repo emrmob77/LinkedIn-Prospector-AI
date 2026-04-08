@@ -15,10 +15,14 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
+  ScanEye,
+  Loader2,
 } from "lucide-react";
+import type { ImageAnalysisResult } from "@/types/models";
 
 export interface PostCardData {
   id: string;
+  dbId?: string;
   authorName: string;
   authorTitle: string;
   authorCompany: string;
@@ -37,6 +41,8 @@ export interface PostCardData {
   isRelevant?: boolean | null;
   relevanceConfidence?: number | null;
   theme?: string | null;
+  imageAnalysis?: ImageAnalysisResult | null;
+  imageAnalyzedAt?: string | null;
 }
 
 interface PostCardProps {
@@ -47,6 +53,46 @@ interface PostCardProps {
 export function PostCard({ post, onExtractLead }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<ImageAnalysisResult | null>(
+    post.imageAnalysis || null
+  );
+  const [analysisDate, setAnalysisDate] = useState<string | null>(
+    post.imageAnalyzedAt || null
+  );
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+
+  const handleAnalyzeImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (analyzing) return;
+
+    setAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const postDbId = post.dbId || post.id;
+      const res = await fetch(`/api/posts/${postDbId}/analyze-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: false }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `Hata: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setAnalysisResult(data.analysis);
+      setAnalysisDate(data.analyzedAt);
+      setShowAnalysis(true);
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : "Analiz hatasi");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const initials = post.authorName
     .split(" ")
@@ -256,7 +302,122 @@ export function PostCard({ post, onExtractLead }: PostCardProps) {
           )}
         </div>
 
-        {/* Lead Çıkar butonu */}
+        {/* Gorsel Analiz Butonu */}
+        {post.images.length > 0 && (
+          <div className="mt-1.5">
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={analysisResult ? "outline" : "secondary"}
+                size="sm"
+                className="h-6 text-[10px] gap-1 flex-1"
+                onClick={handleAnalyzeImage}
+                disabled={analyzing}
+              >
+                {analyzing ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Analiz ediliyor...
+                  </>
+                ) : analysisResult ? (
+                  <>
+                    <ScanEye className="h-3 w-3" />
+                    Yeniden Analiz Et
+                  </>
+                ) : (
+                  <>
+                    <ScanEye className="h-3 w-3" />
+                    Gorsel Analiz
+                  </>
+                )}
+              </Button>
+              {analysisResult && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] px-2"
+                  onClick={(e) => { e.stopPropagation(); setShowAnalysis(!showAnalysis); }}
+                >
+                  {showAnalysis ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </Button>
+              )}
+            </div>
+
+            {analysisError && (
+              <p className="text-[10px] text-red-500 mt-1">{analysisError}</p>
+            )}
+
+            {/* Analiz Sonuclari */}
+            {analysisResult && showAnalysis && (
+              <div className="mt-1.5 p-2 rounded-md bg-muted/50 space-y-1.5">
+                {/* Uygunluk Skoru */}
+                <div className="flex items-center gap-1.5">
+                  <Badge
+                    className={`text-[10px] px-1.5 py-0 border-0 ${
+                      analysisResult.relevanceScore >= 70
+                        ? "bg-emerald-500 text-white"
+                        : analysisResult.relevanceScore >= 40
+                          ? "bg-amber-500 text-white"
+                          : "bg-red-500 text-white"
+                    }`}
+                  >
+                    Uygunluk: %{analysisResult.relevanceScore}
+                  </Badge>
+                  <span className="text-[9px] text-muted-foreground">
+                    {analysisResult.qualityAssessment}
+                  </span>
+                </div>
+
+                {/* Aciklama */}
+                <p className="text-[10px] text-foreground/70">
+                  {analysisResult.relevanceSummary}
+                </p>
+
+                {/* Urunler */}
+                {analysisResult.products.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {analysisResult.products.map((p, i) => (
+                      <Badge key={i} variant="outline" className="text-[9px] px-1 py-0 bg-blue-50 text-blue-700 border-blue-200">
+                        {p}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Markalar */}
+                {analysisResult.brands.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {analysisResult.brands.map((b, i) => (
+                      <Badge key={i} variant="outline" className="text-[9px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                        {b}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Etkinlik Turu */}
+                {analysisResult.eventType && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-orange-50 text-orange-700 border-orange-200">
+                    {analysisResult.eventType}
+                  </Badge>
+                )}
+
+                {/* Cache bilgisi */}
+                {analysisDate && (
+                  <p className="text-[9px] text-muted-foreground">
+                    Son analiz: {new Date(analysisDate).toLocaleDateString("tr-TR", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lead Cikar butonu */}
         {post.isRelevant && onExtractLead && (
           <Button
             size="sm"

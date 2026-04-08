@@ -43,8 +43,22 @@ export interface Post {
   competitor: string | null;
   classificationReasoning: string | null;
   classifiedAt: Date | null;
+
+  // AI Görsel Analiz alanları (opsiyonel — migration sonrası mevcut)
+  imageAnalysis?: ImageAnalysisResult | null;
+  imageAnalyzedAt?: Date | null;
+
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ImageAnalysisResult {
+  products: string[];        // Tespit edilen ürünler
+  brands: string[];          // Tespit edilen markalar
+  eventType: string | null;  // Etkinlik türü (kutlama, lansman, vb.)
+  qualityAssessment: string; // Görsel kalite değerlendirmesi
+  relevanceScore: number;    // 0-100 uygunluk skoru
+  relevanceSummary: string;  // Kısa açıklama
 }
 
 export type LeadSource = 'post_author' | 'commenter' | 'reactor';
