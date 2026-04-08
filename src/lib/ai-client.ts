@@ -82,7 +82,7 @@ function createAnthropicClient(apiKey: string, userModel: string | null): AIClie
         },
       }));
       const response = await client.messages.create({
-        model: userModel || model,
+        model, // vision'da parametre model kullan
         max_tokens: maxTokens,
         temperature,
         system: systemPrompt,
@@ -142,13 +142,13 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
       return { text };
     },
     async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
-      const modelToUse = userModel || model;
+      // Vision'da her zaman parametre model'i kullan — userModel vision desteklemeyebilir
       const imageContent = images.map((img) => ({
         type: 'image_url' as const,
         image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
       }));
       const response = await client.chat.completions.create({
-        model: modelToUse,
+        model,
         max_tokens: maxTokens,
         temperature,
         messages: [
@@ -165,12 +165,12 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
 
       const choice = response.choices?.[0];
       if (!choice) {
-        throw new Error(`OpenRouter yanitinda choices bos — model=${modelToUse}`);
+        throw new Error(`OpenRouter yanitinda choices bos — model=${model}`);
       }
 
       const text = choice.message?.content;
       if (!text) {
-        throw new Error(`OpenRouter yanitinda content bos — model=${modelToUse}, finish_reason=${choice.finish_reason}`);
+        throw new Error(`OpenRouter yanitinda content bos — model=${model}, finish_reason=${choice.finish_reason}`);
       }
       return { text };
     },
@@ -206,7 +206,7 @@ function createOpenAIClient(apiKey: string, userModel: string | null): AIClient 
         image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
       }));
       const response = await client.chat.completions.create({
-        model: userModel || model,
+        model, // vision'da parametre model kullan
         max_tokens: maxTokens,
         temperature,
         messages: [
@@ -251,9 +251,9 @@ function createGoogleClient(apiKey: string, userModel: string | null): AIClient 
       }
       return { text };
     },
-    async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+    async chatWithVision({ model: visionModel, maxTokens, temperature, systemPrompt, userMessage, images }) {
       const geminiModel = genAI.getGenerativeModel({
-        model: userModel || model,
+        model: visionModel, // vision'da parametre model kullan
         systemInstruction: systemPrompt,
       });
       const imageParts = images.map((img) => ({
