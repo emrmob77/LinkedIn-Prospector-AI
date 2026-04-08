@@ -108,14 +108,19 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
   const client = new OpenAI({
     apiKey,
     baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      'X-Title': 'LinkedIn Prospector AI',
+    },
   });
 
   return {
     provider: 'openrouter',
     model: userModel,
     async chat({ model, maxTokens, temperature, systemPrompt, userMessage }) {
+      const modelToUse = userModel || model;
       const response = await client.chat.completions.create({
-        model: userModel || model,
+        model: modelToUse,
         max_tokens: maxTokens,
         temperature,
         messages: [
@@ -123,19 +128,27 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
           { role: 'user', content: userMessage },
         ],
       });
-      const text = response.choices[0]?.message?.content;
+
+      // OpenRouter free modellerde choices bos veya content null olabilir
+      const choice = response.choices?.[0];
+      if (!choice) {
+        throw new Error(`OpenRouter yanitinda choices bos — model=${modelToUse}, choices_length=${response.choices?.length ?? 0}`);
+      }
+
+      const text = choice.message?.content;
       if (!text) {
-        throw new Error('OpenRouter yanıtında içerik bulunamadı');
+        throw new Error(`OpenRouter yanitinda content bos — model=${modelToUse}, finish_reason=${choice.finish_reason}, choices_length=${response.choices?.length}`);
       }
       return { text };
     },
     async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+      const modelToUse = userModel || model;
       const imageContent = images.map((img) => ({
         type: 'image_url' as const,
         image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
       }));
       const response = await client.chat.completions.create({
-        model: userModel || model,
+        model: modelToUse,
         max_tokens: maxTokens,
         temperature,
         messages: [
@@ -149,9 +162,15 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
           },
         ],
       });
-      const text = response.choices[0]?.message?.content;
+
+      const choice = response.choices?.[0];
+      if (!choice) {
+        throw new Error(`OpenRouter yanitinda choices bos — model=${modelToUse}`);
+      }
+
+      const text = choice.message?.content;
       if (!text) {
-        throw new Error('OpenRouter yanıtında içerik bulunamadı');
+        throw new Error(`OpenRouter yanitinda content bos — model=${modelToUse}, finish_reason=${choice.finish_reason}`);
       }
       return { text };
     },

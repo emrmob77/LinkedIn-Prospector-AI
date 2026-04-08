@@ -306,13 +306,22 @@ async function handler(request: NextRequest) {
         }
 
         // Activity log
+        const totalPosts = typedPosts.length;
+        const failedPosts = totalPosts - result.classified;
         logActivity({
           supabase: supabaseAdmin,
           actionType: 'post_classified',
           userId,
           entityType: 'search_run',
           entityId: searchRunId,
-          details: { classified: result.classified, relevant: result.relevant, irrelevant: result.irrelevant, leadsScored },
+          details: {
+            classified: result.classified,
+            relevant: result.relevant,
+            irrelevant: result.irrelevant,
+            leadsScored,
+            totalPosts,
+            ...(failedPosts > 0 ? { failedPosts, warning: `${failedPosts} post siniflandirilamadi (AI hatasi)` } : {}),
+          },
         });
       } catch (bgError) {
         console.error('Arka plan siniflandirma hatasi:', bgError);
