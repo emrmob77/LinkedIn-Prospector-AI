@@ -101,7 +101,7 @@ export async function POST(
     // Firma bağlamını user_settings'ten al
     const { data: settings } = await supabaseAdmin
       .from('user_settings')
-      .select('company_name, company_sector, product_description')
+      .select('company_name, company_sector, product_description, vision_model')
       .eq('user_id', user.id)
       .single();
 
@@ -113,7 +113,8 @@ export async function POST(
 
     // AI client al ve analiz yap
     const aiClient = await getUserAIClient(user.id);
-    const analysis = await analyzePostImages(aiClient, images, companyContext);
+    const visionModel = (settings?.vision_model as string) || undefined;
+    const analysis = await analyzePostImages(aiClient, images, companyContext, 3, visionModel);
 
     const now = new Date().toISOString();
 

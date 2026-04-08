@@ -35,7 +35,7 @@ import {
   Building,
   MessageSquare,
 } from "lucide-react";
-import { PROVIDER_MODELS } from "@/lib/ai-models";
+import { PROVIDER_MODELS, VISION_MODELS } from "@/lib/ai-models";
 import type { UserSettingsPublic, AIProvider } from "@/types/models";
 
 type ApiKeyField = "anthropicApiKey" | "openaiApiKey" | "googleApiKey" | "openrouterApiKey";
@@ -94,6 +94,7 @@ export default function SettingsPage() {
   });
   const [aiProvider, setAiProvider] = useState<AIProvider>("anthropic");
   const [aiModel, setAiModel] = useState("");
+  const [visionModel, setVisionModel] = useState("");
   const [aiTemperature, setAiTemperature] = useState(0.3);
   const [autoClassify, setAutoClassify] = useState(true);
 
@@ -126,6 +127,7 @@ export default function SettingsPage() {
         setSettings(data);
         setAiProvider(data.aiProvider);
         setAiModel(data.aiModel || "");
+        setVisionModel(data.visionModel || "");
         setAiTemperature(data.aiTemperature);
         setAutoClassify(data.autoClassify);
         setCompanyName(data.companyName);
@@ -150,7 +152,7 @@ export default function SettingsPage() {
     setMessage(null);
     try {
       const body: Record<string, unknown> = {
-        aiProvider, aiModel, aiTemperature, autoClassify,
+        aiProvider, aiModel, visionModel, aiTemperature, autoClassify,
         companyName, companySector, productDescription, targetCustomer, companyWebsite,
         excludedBrands,
         classificationPrompt, companyContext, messagePrompt,
@@ -201,6 +203,7 @@ export default function SettingsPage() {
   };
 
   const currentModels = PROVIDER_MODELS[aiProvider] || [];
+  const currentVisionModels = VISION_MODELS[aiProvider] || [];
 
   return (
     <AppLayout title="Yapılandırma" description="AI ve firma ayarlarınızı yönetin">
@@ -308,7 +311,7 @@ export default function SettingsPage() {
                       <Button key={p.id}
                         variant={aiProvider === p.id ? "default" : "outline"}
                         size="sm" className="h-8 text-xs"
-                        onClick={() => { setAiProvider(p.id); setAiModel(""); }}>
+                        onClick={() => { setAiProvider(p.id); setAiModel(""); setVisionModel(""); }}>
                         {p.label}
                       </Button>
                     ))}
@@ -340,6 +343,34 @@ export default function SettingsPage() {
                   </Select>
                   <p className="text-[10px] text-muted-foreground">
                     Boş bırakırsanız önerilen model kullanılır
+                  </p>
+                </div>
+
+                {/* Vision Model Dropdown */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Gorsel Analiz Modeli</Label>
+                  <Select value={visionModel} onValueChange={setVisionModel}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Varsayilan vision model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel className="text-[10px]">Vision Modeller</SelectLabel>
+                        {currentVisionModels.map((m) => (
+                          <SelectItem key={m.id} value={m.id} className="text-xs">
+                            <span className="flex items-center justify-between w-full gap-3">
+                              {m.label}
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 ml-2 shrink-0">
+                                {m.tierLabel}
+                              </Badge>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Post gorsellerini analiz icin kullanilir (vision destekli model gerekir)
                   </p>
                 </div>
 
