@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import {
   Card,
@@ -213,7 +213,8 @@ function ListItem({ post }: { post: PostCardData }) {
   );
 }
 
-export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyComplete }: SearchResultsProps) {
+export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyComplete: _onClassifyComplete }: SearchResultsProps) {
+  void _onClassifyComplete; // kept for interface compat
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("3");
   const [classifying, setClassifying] = useState(false);
@@ -225,6 +226,14 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
   const classifiedCount = relevantCount + irrelevantCount;
   const allClassified = classifiedCount === posts.length && posts.length > 0;
   const totalCount = posts.length;
+
+  // Arka plan siniflandirma tamamlaninca classifying'i kapat
+  useEffect(() => {
+    if (classifying && allClassified) {
+      setClassifying(false);
+      setClassifyMessage(`${totalCount} post siniflandirildi, ${relevantCount} ilgili bulundu`);
+    }
+  }, [classifying, allClassified, totalCount, relevantCount]);
 
   const filteredPosts = showOnlyRelevant
     ? posts.filter((p) => p.isRelevant === true)
@@ -248,25 +257,16 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
         throw new Error(data.error || `Hata: ${res.status}`);
       }
 
-      const result = await res.json();
-      if (result.started) {
-        setClassifyMessage(
-          `${result.postCount} post siniflandirilmaya baslandi...`
-        );
-      } else {
-        setClassifyMessage(
-          `${result.classified || 0} post siniflandirildi, ${result.relevant || 0} ilgili bulundu`
-        );
-      }
-      onClassifyComplete?.(result as ClassifyResult);
+      await res.json();
+      // classifying TRUE kalir — polling ile postlar guncellendikce
+      // progress bar ilerler, tum postlar siniflaninca useEffect kapatir
     } catch (err) {
       setClassifyMessage(
         err instanceof Error ? err.message : "Siniflandirma hatasi"
       );
-    } finally {
       setClassifying(false);
     }
-  }, [searchRunId, classifying, onClassifyStart, onClassifyComplete]);
+  }, [searchRunId, classifying, onClassifyStart]);
 
   return (
     <Card>
@@ -360,7 +360,9 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 {classifying && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                {classifying ? "AI sınıflandırıyor..." : `${classifiedCount}/${totalCount} tamamlandı`}
+                {classifying
+                  ? `${classifiedCount}/${totalCount} siniflandirildi — devam ediyor...`
+                  : `${classifiedCount}/${totalCount} tamamlandi`}
               </span>
               <span className="font-mono text-muted-foreground">
                 %{totalCount > 0 ? Math.round((classifiedCount / totalCount) * 100) : 0}
@@ -368,26 +370,21 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
             </div>
             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
+                className={`h-full rounded-full transition-all duration-500 ${classifying ? "bg-primary animate-pulse" : "bg-primary"}`}
                 style={{ width: `${totalCount > 0 ? (classifiedCount / totalCount) * 100 : 0}%` }}
               />
             </div>
           </div>
         )}
 
-        {/* Sınıflandırma sonuç mesajı */}
+        {/* Sınıflandırma sonuç mesajı — sadece tamamlaninca goster */}
         {classifyMessage && !classifying && (
-          <div className="mt-2 rounded-md bg-muted/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950 px-3 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
             {classifyMessage}
           </div>
         )}
       </CardHeader>
-      {classifyMessage && (
-        <div className="mx-6 mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-          {classifyMessage}
-        </div>
-      )}
       <CardContent className="pt-0">
         {viewMode === "list" ? (
           <div className="flex flex-col gap-2">
