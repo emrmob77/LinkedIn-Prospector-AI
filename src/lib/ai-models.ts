@@ -19,9 +19,10 @@ export const PROVIDER_MODELS: Record<AIProvider, AIModelOption[]> = {
     { id: 'gpt-4o-mini', label: 'GPT-4o Mini', tier: 'fast', tierLabel: 'Hızlı / Ucuz' },
   ],
   google: [
-    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', tier: 'recommended', tierLabel: 'Önerilen' },
-    { id: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro', tier: 'premium', tierLabel: 'Premium' },
-    { id: 'gemini-2.5-flash-preview-05-20', label: 'Gemini 2.5 Flash', tier: 'fast', tierLabel: 'Hızlı / Ucuz' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'recommended', tierLabel: 'Önerilen' },
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', tier: 'premium', tierLabel: 'Premium' },
+    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', tier: 'fast', tierLabel: 'Hızlı / Ucuz' },
+    { id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', tier: 'fast', tierLabel: 'Yeni / Preview' },
   ],
   openrouter: [
     { id: 'anthropic/claude-sonnet-4-20250514', label: 'Claude Sonnet 4', tier: 'recommended', tierLabel: 'Önerilen' },
