@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-4-20250514';
 const DEFAULT_TEMPERATURE = 0.3;
-const BATCH_DELAY_MS = 500;
+const BATCH_DELAY_MS = 4000; // 4s — free tier rate limit korumasi
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 2000;
 
