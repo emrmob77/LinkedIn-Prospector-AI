@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { logActivity } from '@/services/activityLogService';
 
 export async function PATCH(
   request: NextRequest,
@@ -44,6 +45,20 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Activity log kaydet (fire-and-forget)
+    logActivity({
+      supabase,
+      actionType: 'lead_stage_changed',
+      userId: user.id,
+      entityType: 'lead',
+      entityId: updatedLead.id,
+      details: {
+        field: 'is_competitor',
+        oldValue: !isCompetitor,
+        newValue: isCompetitor,
+      },
+    });
 
     return NextResponse.json({
       id: updatedLead.id,

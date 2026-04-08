@@ -233,12 +233,16 @@
     if (!node || !node.matches) return false;
 
     try {
-      // Post container siniflarini kontrol et
-      if (node.matches('.feed-shared-update-v2, [data-urn*="activity"], .occludable-update')) {
+      // SDUI post container selektorleri
+      if (node.matches('div[role="listitem"], [data-testid="main-feed-activity-card"], [data-testid*="feed-activity"]')) {
         return true;
       }
-      // Iceride post container var mi
-      if (node.querySelector && node.querySelector('.feed-shared-update-v2, [data-urn*="activity"]')) {
+      // Eski LinkedIn post container selektorleri
+      if (node.matches('.feed-shared-update-v2, [data-urn*="activity"], .occludable-update, [data-id*="urn:li:activity"]')) {
+        return true;
+      }
+      // Iceride post container var mi (hem SDUI hem eski)
+      if (node.querySelector && node.querySelector('div[role="listitem"], .feed-shared-update-v2, [data-urn*="activity"], [data-testid*="feed-activity"]')) {
         return true;
       }
     } catch (e) {

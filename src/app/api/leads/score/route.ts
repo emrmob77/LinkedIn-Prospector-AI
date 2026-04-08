@@ -5,11 +5,14 @@ import type { BusinessContext } from '@/services/aiClassificationService';
 import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Lead } from '@/types/models';
+import { withRateLimit } from '@/lib/with-rate-limit';
+
+const SCORE_RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 };
 
 /**
  * POST /api/leads/score — Skoru 0 olan lead'leri AI ile puanla
  */
-export async function POST() {
+async function handler() {
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -97,3 +100,5 @@ export async function POST() {
     return NextResponse.json({ error: 'Beklenmeyen hata' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(handler, SCORE_RATE_LIMIT);

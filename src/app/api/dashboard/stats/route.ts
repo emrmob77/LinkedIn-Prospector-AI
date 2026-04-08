@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getExcludedBrands, applyBrandFilter } from '@/lib/brand-filter';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,37 +27,7 @@ export async function GET() {
     }
 
     // Haric tutulan markalari cek
-    let excludedBrands: string[] = [];
-    try {
-      const { data: settings } = await supabaseAdmin
-        .from('user_settings')
-        .select('excluded_brands, company_name')
-        .eq('user_id', user.id)
-        .single();
-      if (settings) {
-        const brands = Array.isArray(settings.excluded_brands)
-          ? settings.excluded_brands
-          : JSON.parse(settings.excluded_brands || '[]');
-        excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b);
-        if (settings.company_name && typeof settings.company_name === 'string') {
-          const cn = settings.company_name.trim();
-          if (cn && !excludedBrands.some((b: string) => b.toLowerCase() === cn.toLowerCase())) {
-            excludedBrands.push(cn);
-          }
-        }
-      }
-    } catch { /* ignore */ }
-
-    // Lead sorgularina excluded brands filtresi uygulayan yardimci (wildcard escape)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const applyBrandFilter = (q: any) => {
-      let filtered = q;
-      for (const brand of excludedBrands) {
-        const escaped = brand.replace(/%/g, '\\%').replace(/_/g, '\\_');
-        filtered = filtered.or(`company.not.ilike.%${escaped}%,company.is.null`);
-      }
-      return filtered;
-    };
+    const excludedBrands = await getExcludedBrands(user.id);
 
     // 1. Adim: Kullanicinin search_run id'lerini al (post filtreleme icin gerekli)
     // + diger bagimsiz sorgulari paralel calistir
@@ -78,30 +48,30 @@ export async function GET() {
         .eq('user_id', user.id),
 
       // totalLeads: aktif lead sayisi (haric tutulan markalar filtrelenmis)
-      applyBrandFilter(
-        supabase
+      applyBrandFilter(supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('is_active', true)
+          .eq('is_active', true),
+        excludedBrands
       ),
 
       // leadsThisWeek: bu hafta olusturulan lead sayisi
-      applyBrandFilter(
-        supabase
+      applyBrandFilter(supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .gte('created_at', getStartOfWeek().toISOString())
+          .gte('created_at', getStartOfWeek().toISOString()),
+        excludedBrands
       ),
 
       // avgLeadScore: tum aktif lead skorlari
-      applyBrandFilter(
-        supabase
+      applyBrandFilter(supabase
           .from('leads')
           .select('score')
           .eq('user_id', user.id)
-          .eq('is_active', true)
+          .eq('is_active', true),
+        excludedBrands
       ),
 
       // toplam mesaj sayisi
@@ -118,12 +88,12 @@ export async function GET() {
         .eq('status', 'approved'),
 
       // pipelineBreakdown: her stage'deki lead sayisi
-      applyBrandFilter(
-        supabase
+      applyBrandFilter(supabase
           .from('leads')
           .select('stage')
           .eq('user_id', user.id)
-          .eq('is_active', true)
+          .eq('is_active', true),
+        excludedBrands
       ),
 
       // recentSearchRuns: son 5

@@ -3,11 +3,12 @@ import { createClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractLeadsBatch } from '@/services/leadExtractionService';
 import type { Post } from '@/types/models';
+import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
 
 /**
  * POST /api/leads/extract — Sınıflandırılmış ama lead'e dönüşmemiş postlardan lead çıkar
  */
-export async function POST() {
+async function handler() {
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -97,3 +98,5 @@ export async function POST() {
     return NextResponse.json({ error: 'Beklenmeyen hata' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(handler, AI_RATE_LIMIT);

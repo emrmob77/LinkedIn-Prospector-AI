@@ -13,6 +13,11 @@ export interface AIClientResult {
   text: string;
 }
 
+export interface VisionImageInput {
+  base64: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+}
+
 export interface AIClient {
   provider: AIProvider;
   model: string | null;
@@ -26,6 +31,19 @@ export interface AIClient {
     temperature: number;
     systemPrompt: string;
     userMessage: string;
+  }): Promise<AIClientResult>;
+
+  /**
+   * Görsel analiz — sistem prompt + metin + görsel(ler) ile AI çağrısı.
+   * Tüm provider'lar vision desteği sunar.
+   */
+  chatWithVision(params: {
+    model: string;
+    maxTokens: number;
+    temperature: number;
+    systemPrompt: string;
+    userMessage: string;
+    images: VisionImageInput[];
   }): Promise<AIClientResult>;
 }
 
@@ -47,6 +65,34 @@ function createAnthropicClient(apiKey: string, userModel: string | null): AIClie
         temperature,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
+      });
+      const textBlock = response.content.find((b) => b.type === 'text');
+      if (!textBlock || textBlock.type !== 'text') {
+        throw new Error('Claude yanıtında text block bulunamadı');
+      }
+      return { text: textBlock.text };
+    },
+    async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+      const imageBlocks = images.map((img) => ({
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type: img.mimeType,
+          data: img.base64,
+        },
+      }));
+      const response = await client.messages.create({
+        model: userModel || model,
+        max_tokens: maxTokens,
+        temperature,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [
+            ...imageBlocks,
+            { type: 'text' as const, text: userMessage },
+          ],
+        }],
       });
       const textBlock = response.content.find((b) => b.type === 'text');
       if (!textBlock || textBlock.type !== 'text') {
@@ -83,6 +129,32 @@ function createOpenRouterClient(apiKey: string, userModel: string | null): AICli
       }
       return { text };
     },
+    async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+      const imageContent = images.map((img) => ({
+        type: 'image_url' as const,
+        image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+      }));
+      const response = await client.chat.completions.create({
+        model: userModel || model,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              ...imageContent,
+              { type: 'text' as const, text: userMessage },
+            ],
+          },
+        ],
+      });
+      const text = response.choices[0]?.message?.content;
+      if (!text) {
+        throw new Error('OpenRouter yanıtında içerik bulunamadı');
+      }
+      return { text };
+    },
   };
 }
 
@@ -109,6 +181,32 @@ function createOpenAIClient(apiKey: string, userModel: string | null): AIClient 
       }
       return { text };
     },
+    async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+      const imageContent = images.map((img) => ({
+        type: 'image_url' as const,
+        image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+      }));
+      const response = await client.chat.completions.create({
+        model: userModel || model,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              ...imageContent,
+              { type: 'text' as const, text: userMessage },
+            ],
+          },
+        ],
+      });
+      const text = response.choices[0]?.message?.content;
+      if (!text) {
+        throw new Error('OpenAI yanıtında içerik bulunamadı');
+      }
+      return { text };
+    },
   };
 }
 
@@ -126,6 +224,30 @@ function createGoogleClient(apiKey: string, userModel: string | null): AIClient 
       });
       const result = await geminiModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: { temperature, maxOutputTokens: maxTokens },
+      });
+      const text = result.response.text();
+      if (!text) {
+        throw new Error('Gemini yanıtında içerik bulunamadı');
+      }
+      return { text };
+    },
+    async chatWithVision({ model, maxTokens, temperature, systemPrompt, userMessage, images }) {
+      const geminiModel = genAI.getGenerativeModel({
+        model: userModel || model,
+        systemInstruction: systemPrompt,
+      });
+      const imageParts = images.map((img) => ({
+        inlineData: { mimeType: img.mimeType, data: img.base64 },
+      }));
+      const result = await geminiModel.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [
+            ...imageParts,
+            { text: userMessage },
+          ],
+        }],
         generationConfig: { temperature, maxOutputTokens: maxTokens },
       });
       const text = result.response.text();
