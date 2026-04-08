@@ -166,18 +166,7 @@ export default function SearchPage() {
 
     autoClassifyRef.current = true;
 
-    // Polling baslat
-    pollingRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/search/${runId}/posts`);
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data.posts || []);
-        }
-      } catch { /* sessiz */ }
-    }, 5000);
-
-    // Siniflandirmayi tetikle (arka planda)
+    // Siniflandirmayi tetikle (backend arka planda calisir, sayfa kapansa da devam eder)
     try {
       await fetch("/api/posts/classify", {
         method: "POST",
@@ -186,19 +175,27 @@ export default function SearchPage() {
       });
     } catch { /* sessiz */ }
 
-    // Polling durdur, son veriyi cek
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-    try {
-      const res = await fetch(`/api/search/${runId}/posts`);
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(data.posts || []);
-      }
-    } catch { /* sessiz */ }
-    autoClassifyRef.current = false;
+    // Polling baslat — backend calisirken sonuclari takip et
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/search/${runId}/posts`);
+        if (res.ok) {
+          const data = await res.json();
+          const updatedPosts: PostCardData[] = data.posts || [];
+          setPosts(updatedPosts);
+
+          // Tum postlar siniflandirildi mi kontrol et
+          const stillUnclassified = updatedPosts.filter((p: PostCardData) => p.isRelevant == null);
+          if (stillUnclassified.length === 0) {
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+            }
+            autoClassifyRef.current = false;
+          }
+        }
+      } catch { /* sessiz */ }
+    }, 4000);
   }, []);
 
   useEffect(() => {
