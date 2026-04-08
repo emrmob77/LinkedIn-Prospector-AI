@@ -247,11 +247,17 @@ export function SearchResults({ posts, searchRunId, onClassifyStart, onClassifyC
         throw new Error(data.error || `Hata: ${res.status}`);
       }
 
-      const result: ClassifyResult = await res.json();
-      setClassifyMessage(
-        `${result.classified} post siniflandirildi, ${result.relevant} ilgili bulundu`
-      );
-      onClassifyComplete?.(result);
+      const result = await res.json();
+      if (result.started) {
+        setClassifyMessage(
+          `${result.postCount} post siniflandirilmaya baslandi...`
+        );
+      } else {
+        setClassifyMessage(
+          `${result.classified || 0} post siniflandirildi, ${result.relevant || 0} ilgili bulundu`
+        );
+      }
+      onClassifyComplete?.(result as ClassifyResult);
     } catch (err) {
       setClassifyMessage(
         err instanceof Error ? err.message : "Siniflandirma hatasi"
