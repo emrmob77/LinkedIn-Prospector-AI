@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -32,6 +32,9 @@ export function AIUsageBadge({ refreshTrigger = 0, onLimitReached }: AIUsageBadg
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const onLimitReachedRef = useRef(onLimitReached);
+  onLimitReachedRef.current = onLimitReached;
+
   const fetchUsage = useCallback(async () => {
     try {
       setError(false);
@@ -45,16 +48,16 @@ export function AIUsageBadge({ refreshTrigger = 0, onLimitReached }: AIUsageBadg
 
       // Limit durumunu parent'a bildir
       if (result.isFree && result.remaining !== undefined && result.remaining !== null) {
-        onLimitReached?.(result.remaining <= 0);
+        onLimitReachedRef.current?.(result.remaining <= 0);
       } else {
-        onLimitReached?.(false);
+        onLimitReachedRef.current?.(false);
       }
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [onLimitReached]);
+  }, []);
 
   useEffect(() => {
     fetchUsage();
