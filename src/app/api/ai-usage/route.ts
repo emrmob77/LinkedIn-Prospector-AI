@@ -86,21 +86,36 @@ export async function GET() {
     const result = await response.json();
     const data = result.data;
 
-    // limit null ise unlimited (ucretli plan)
-    const limit = data.limit ?? null;
-    const usage = data.usage ?? 0;
-    const isFree = limit !== null;
-    const remaining = isFree ? Math.max(0, limit - usage) : null;
+    const isFree = data.is_free_tier === true;
 
+    // Free tier: günlük 50 istek limiti (OpenRouter standart)
+    // Bu bilgi /auth/key'den gelmiyor, sabit değer
+    const FREE_DAILY_LIMIT = 50;
+
+    if (isFree) {
+      // Günlük kullanımı /api/v1/auth/key'den al
+      const dailyUsage = data.usage_daily ?? 0;
+      const limit = data.limit ?? FREE_DAILY_LIMIT;
+      const remaining = Math.max(0, limit - dailyUsage);
+
+      return NextResponse.json({
+        provider: 'openrouter',
+        usage: dailyUsage,
+        limit,
+        remaining,
+        isFree: true,
+        label: data.label ?? null,
+      });
+    }
+
+    // Ücretli plan — limit yok
     return NextResponse.json({
       provider: 'openrouter',
-      usage,
-      limit,
-      remaining,
-      isFree,
+      usage: data.usage ?? 0,
+      limit: null,
+      remaining: null,
+      isFree: false,
       label: data.label ?? null,
-      rateLimitRequests: data.rate_limit?.requests ?? null,
-      rateLimitInterval: data.rate_limit?.interval ?? null,
     });
   } catch (error) {
     console.error('AI Usage GET hatasi:', error);
