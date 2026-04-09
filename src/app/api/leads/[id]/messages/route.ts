@@ -66,6 +66,8 @@ export async function GET(
       sentAt: m.sent_at,
       originalBody: m.original_body,
       editCount: m.edit_count,
+      deliveryStatus: m.delivery_status || 'pending',
+      deliveryError: m.delivery_error || null,
       createdAt: m.created_at,
       updatedAt: m.updated_at,
     }));

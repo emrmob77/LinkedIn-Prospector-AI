@@ -602,24 +602,23 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
                   )}
                   {msg.status === "approved" && (
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {msg.messageType === "email" && (
-                        leadEmail ? (
-                          <Button size="sm" className="h-7 text-[11px]"
-                            onClick={() => handleSendEmail(msg.id)}>
-                            <Send className="mr-1 h-3 w-3" />Email Gonder
-                          </Button>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 bg-amber-50">
-                            <AlertCircle className="mr-1 h-3 w-3" />
-                            Once Email Ekle
-                          </Badge>
-                        )
+                      {/* Email Gönder — lead'de email varsa her mesaj tipi için */}
+                      {leadEmail ? (
+                        <Button size="sm" className="h-7 text-[11px]"
+                          onClick={() => handleSendEmail(msg.id)}>
+                          <Send className="mr-1 h-3 w-3" />Email Gönder
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 bg-amber-50">
+                          <AlertCircle className="mr-1 h-3 w-3" />
+                          Önce Email Ekle
+                        </Badge>
                       )}
                       <Button size="sm" variant="outline" className="h-7 text-[11px]"
                         onClick={() => { navigator.clipboard.writeText(msg.body); }}>
                         <Copy className="mr-1 h-3 w-3" />Kopyala
                       </Button>
-                      {lead.linkedinUrl && msg.messageType === "dm" && (
+                      {lead.linkedinUrl && (
                         <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
                           <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="mr-1 h-3 w-3" />LinkedIn
@@ -629,7 +628,7 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
                       {msg.messageType === "dm" && (
                         <Button size="sm" variant="outline" className="h-7 text-[11px]"
                           onClick={() => handleMarkSent(msg.id)}>
-                          <CheckCircle2 className="mr-1 h-3 w-3" />Gonderildi Isaretle
+                          <CheckCircle2 className="mr-1 h-3 w-3" />Gönderildi İşaretle
                         </Button>
                       )}
                     </div>
