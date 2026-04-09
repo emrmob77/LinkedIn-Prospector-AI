@@ -80,6 +80,7 @@ export interface LeadData {
   profilePicture: string | null;
   projectType: string | null;
   isCompetitor: boolean;
+  email?: string | null;
   createdAt: string;
   updatedAt: string;
   firstPost?: {

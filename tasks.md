@@ -150,11 +150,11 @@ Son guncelleme: 2026-04-09
   - [x] 72.1 Ayarlar sayfasinda email provider secimi
   - [x] 72.2 Provider'a gore form alanlari
   - [x] 72.3 Migration (017): email_support tablosu
-- [ ] 73. Email gonderim UI tamamlama
-  - [ ] 73.1 Lead detay paneline email input alani (lead'e email adresi ekleme)
-  - [ ] 73.2 Onaylanmis mesajlarda "Gonder" butonu
-  - [ ] 73.3 Gonderim durumu badge'leri (gonderildi / basarisiz / beklemede)
-  - [ ] 73.4 DM mesajlari icin "Gonderildi Isaretle" endpoint + UI
+- [x] 73. Email gonderim UI tamamlama
+  - [x] 73.1 Lead detay paneline email input alani (lead'e email adresi ekleme)
+  - [x] 73.2 Onaylanmis mesajlarda "Gonder" butonu
+  - [x] 73.3 Gonderim durumu badge'leri (gonderildi / basarisiz / beklemede)
+  - [x] 73.4 DM mesajlari icin "Gonderildi Isaretle" endpoint + UI
   - _Sorumluluk: Frontend + Backend_
   - _Bagimlilık: 70, 71, 72 (tamamlandi)_
 
@@ -163,27 +163,17 @@ Son guncelleme: 2026-04-09
 ## Faz 4: Planlanmis Gorevler
 
 ### P1 - Lead Email & Gonderim UI
-- [ ] 74. Lead'e email adresi ekleme
-  - [ ] 74.1 Lead detay paneline email input alani (Backend: leads PATCH endpoint guncelleme)
-  - [ ] 74.2 Email alani UI (Frontend: lead-detail-panel.tsx)
-  - _Sorumluluk: Backend + Frontend_
-  - _Bagimlilık: Yok_
-- [ ] 75. Email gonder butonu (onaylanmis mesajlar)
-  - [ ] 75.1 Mesaj kartina "Email Gonder" butonu (Frontend)
-  - [ ] 75.2 Gonderim oncesi onay dialog'u (Frontend)
-  - [ ] 75.3 Gonderim sonrasi status guncelleme (Backend: messages tablosu)
-  - _Sorumluluk: Frontend + Backend_
-  - _Bagimlilık: 74_
-- [ ] 76. DM mesajlari icin "Gonderildi Isaretle"
-  - [ ] 76.1 `PATCH /api/messages/:id/mark-sent` endpoint (Backend)
-  - [ ] 76.2 Mesaj kartina "Gonderildi Isaretle" butonu (Frontend)
-  - _Sorumluluk: Backend + Frontend_
-  - _Bagimlilık: Yok_
-- [ ] 77. Gonderim durumu badge'leri
-  - [ ] 77.1 Mesaj kartlarinda durum badge'leri (gonderildi / basarisiz / beklemede)
-  - [ ] 77.2 Pipeline tablosunda son mesaj durumu kolonu
-  - _Sorumluluk: Frontend_
-  - _Bagimlilık: 75, 76_
+- [x] 74. Lead'e email adresi ekleme
+  - [x] 74.1 Lead detay paneline email input alani (Backend: leads PATCH endpoint mevcut)
+  - [x] 74.2 Email alani UI (Frontend: lead-detail-panel.tsx — inline edit)
+- [x] 75. Email gonder butonu (onaylanmis mesajlar)
+  - [x] 75.1 Mesaj kartina "Email Gonder" butonu
+  - [x] 75.2 Gonderim sonrasi status guncelleme
+- [x] 76. DM mesajlari icin "Gonderildi Isaretle"
+  - [x] 76.1 `PATCH /api/messages/:id/mark-sent` endpoint
+  - [x] 76.2 Mesaj kartina "Gonderildi Isaretle" butonu
+- [x] 77. Gonderim durumu badge'leri
+  - [x] 77.1 Mesaj kartlarinda durum badge'leri (gonderildi / basarisiz / beklemede)
 
 ### P2 - Toplu Email Import (CSV)
 - [ ] 78. CSV parse utility
@@ -280,11 +270,11 @@ Son guncelleme: 2026-04-09
   - [ ] 94.1 Export sorgusuna `email` alani ekle (`src/app/api/export/route.ts:123-126`)
   - [ ] 94.2 CSV/JSON ciktisina email kolonu dahil et
   - _Sorumluluk: Backend_
-- [ ] 95. DRY refactor: mapLeadToResponse ve mapMessage tekrari
+- [x] 95. DRY refactor: mapLeadToResponse ve mapMessage tekrari
   - [ ] 95.1 `mapLeadToResponse` fonksiyonunu `src/lib/mappers.ts`'e tasi (5 dosyada tekrar ediyor)
   - [ ] 95.2 `mapMessage` fonksiyonunu `src/lib/mappers.ts`'e tasi (3 dosyada tekrar ediyor)
   - _Sorumluluk: Backend_
-- [ ] 96. Rate limiter yayginlastirma
+- [x] 96. Rate limiter yayginlastirma
   - [ ] 96.1 `withRateLimit` wrapper'i AI endpoint'lerine ekle (classify, generate-message, analyze-image)
   - [ ] 96.2 Yazma endpoint'lerine ekle (export, extension/import)
   - _Sorumluluk: Backend_

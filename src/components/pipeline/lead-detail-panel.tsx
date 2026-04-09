@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
   ExternalLink,
   MessageSquare,
@@ -27,6 +28,7 @@ import {
   FileText,
   Loader2,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   Copy,
   Swords,
@@ -34,6 +36,10 @@ import {
   MessageCircle,
   Share2,
   Tag,
+  Mail,
+  Send,
+  AlertCircle,
+  Pencil,
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
 import { type LeadData } from "./pipeline-table";
@@ -77,14 +83,20 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
   const [generatingMessage, setGeneratingMessage] = useState(false);
   const [messages, setMessages] = useState<Array<{
     id: string; messageType: string; subject: string | null; body: string; status: string;
+    deliveryStatus?: string; deliveryError?: string | null; sentAt?: string | null;
   }>>([]);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [leadPosts, setLeadPosts] = useState<LeadPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [competitorToggling, setCompetitorToggling] = useState(false);
+  const [leadEmail, setLeadEmail] = useState(lead?.email || "");
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
 
   useEffect(() => {
     setCurrentStage(lead?.stage ?? "");
+    setLeadEmail(lead?.email || "");
+    setEditingEmail(false);
     setMessages([]);
     setMessageError(null);
     setLeadPosts([]);
@@ -109,7 +121,7 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
       .finally(() => { if (!signal.aborted) setPostsLoading(false); });
 
     return () => controller.abort();
-  }, [lead?.id, lead?.stage]);
+  }, [lead?.id, lead?.stage, lead?.email]);
 
   const handleToggleCompetitor = async () => {
     if (!lead) return;
@@ -161,6 +173,47 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
       const res = await fetch(`/api/messages/${msgId}/reject`, { method: "POST" });
       if (res.ok) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: "rejected" } : m));
+      }
+    } catch {}
+  };
+
+  const handleSaveEmail = async () => {
+    if (!lead) return;
+    setSavingEmail(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: leadEmail }),
+      });
+      if (res.ok) {
+        lead.email = leadEmail;
+        setEditingEmail(false);
+      }
+    } catch {} finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const handleSendEmail = async (msgId: string) => {
+    try {
+      const res = await fetch(`/api/messages/${msgId}/send`, { method: "POST" });
+      if (res.ok) {
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: "sent", deliveryStatus: "sent", sentAt: new Date().toISOString() } : m));
+      } else {
+        const data = await res.json();
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, deliveryStatus: "failed", deliveryError: data.error || "Gonderim basarisiz" } : m));
+      }
+    } catch {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, deliveryStatus: "failed", deliveryError: "Ag hatasi" } : m));
+    }
+  };
+
+  const handleMarkSent = async (msgId: string) => {
+    try {
+      const res = await fetch(`/api/messages/${msgId}/mark-sent`, { method: "PATCH" });
+      if (res.ok) {
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: "sent", sentAt: new Date().toISOString() } : m));
       }
     } catch {}
   };
@@ -255,6 +308,50 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </a>
               )}
+              {/* Email alani */}
+              <div className="mt-2">
+                {!leadEmail || editingEmail ? (
+                  <div className="flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <Input
+                      type="email"
+                      placeholder="Email adresi ekle..."
+                      value={leadEmail}
+                      onChange={(e) => setLeadEmail(e.target.value)}
+                      className="h-7 text-xs flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-7 text-[11px] px-2"
+                      onClick={handleSaveEmail}
+                      disabled={savingEmail || !leadEmail.trim()}
+                    >
+                      {savingEmail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Kaydet"}
+                    </Button>
+                    {editingEmail && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[11px] px-2"
+                        onClick={() => { setEditingEmail(false); setLeadEmail(lead?.email || ""); }}
+                      >
+                        Iptal
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Mail className="h-3 w-3" />
+                    <span>{leadEmail}</span>
+                    <button
+                      className="ml-1 hover:text-foreground"
+                      onClick={() => setEditingEmail(true)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -504,18 +601,65 @@ export function LeadDetailPanel({ open, onClose, lead, onStageChange, onCompetit
                     </div>
                   )}
                   {msg.status === "approved" && (
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1"
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {msg.messageType === "email" && (
+                        leadEmail ? (
+                          <Button size="sm" className="h-7 text-[11px]"
+                            onClick={() => handleSendEmail(msg.id)}>
+                            <Send className="mr-1 h-3 w-3" />Email Gonder
+                          </Button>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 bg-amber-50">
+                            <AlertCircle className="mr-1 h-3 w-3" />
+                            Once Email Ekle
+                          </Badge>
+                        )
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]"
                         onClick={() => { navigator.clipboard.writeText(msg.body); }}>
                         <Copy className="mr-1 h-3 w-3" />Kopyala
                       </Button>
                       {lead.linkedinUrl && msg.messageType === "dm" && (
-                        <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" asChild>
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
                           <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="mr-1 h-3 w-3" />LinkedIn
                           </a>
                         </Button>
                       )}
+                      {msg.messageType === "dm" && (
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                          onClick={() => handleMarkSent(msg.id)}>
+                          <CheckCircle2 className="mr-1 h-3 w-3" />Gonderildi Isaretle
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {msg.status === "sent" && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
+                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                        Gonderildi
+                      </Badge>
+                      {msg.sentAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(msg.sentAt).toLocaleDateString("tr-TR")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {msg.deliveryStatus === "failed" && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200">
+                        <AlertCircle className="mr-1 h-3 w-3" />
+                        Basarisiz
+                      </Badge>
+                      {msg.deliveryError && (
+                        <span className="text-[10px] text-red-500">{msg.deliveryError}</span>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] ml-auto"
+                        onClick={() => handleSendEmail(msg.id)}>
+                        <Send className="mr-1 h-3 w-3" />Tekrar Dene
+                      </Button>
                     </div>
                   )}
                 </div>

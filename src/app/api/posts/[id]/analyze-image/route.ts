@@ -5,14 +5,16 @@ import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { analyzePostImages } from '@/services/imageAnalysisService';
 import type { ImageAnalysisResult } from '@/types/models';
+import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
 
 // Cache süresi: 24 saat (ms)
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 
-export async function POST(
+async function handler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context?: unknown
 ) {
+  const { params } = context as { params: { id: string } };
   try {
     // Auth kontrolü
     const cookieStore = cookies();
@@ -146,3 +148,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withRateLimit(handler, AI_RATE_LIMIT);

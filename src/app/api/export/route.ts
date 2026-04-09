@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 import { logActivity } from '@/services/activityLogService';
 import type { PipelineStage } from '@/types/enums';
 import { PIPELINE_STAGES } from '@/types/enums';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
 // ------------------------------------------------------------------ //
 // CSV Yardimci fonksiyonlari
@@ -69,7 +70,9 @@ interface LeadRow {
 // POST /api/export
 // ------------------------------------------------------------------ //
 
-export async function POST(request: NextRequest) {
+const EXPORT_RATE_LIMIT = { maxRequests: 5, windowMs: 60_000 };
+
+async function handler(request: NextRequest) {
   try {
     // 1. Auth kontrolu
     const supabase = createClient();
@@ -211,3 +214,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handler, EXPORT_RATE_LIMIT);

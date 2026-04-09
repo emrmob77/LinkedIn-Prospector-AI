@@ -6,6 +6,8 @@ interface RateLimitConfig {
   maxRequests: number;
   /** Pencere suresi (milisaniye). Ornek: 60_000 = 1 dakika */
   windowMs: number;
+  /** Opsiyonel ekstra header'lar (ornegin CORS) — hem 429 hem basarili yanita eklenir */
+  extraHeaders?: Record<string, string>;
 }
 
 /** Varsayilan AI endpoint limiti: 10 istek/dakika */
@@ -87,6 +89,11 @@ export function withRateLimit(
         },
         { status: 429 }
       );
+      if (config.extraHeaders) {
+        for (const [key, value] of Object.entries(config.extraHeaders)) {
+          response.headers.set(key, value);
+        }
+      }
       return addRateLimitHeaders(response, config.maxRequests, 0, ipResult.resetAt);
     }
 
@@ -94,6 +101,11 @@ export function withRateLimit(
     const response = await handler(request, context);
 
     // Basarili yanita rate limit header'larini ekle
+    if (config.extraHeaders) {
+      for (const [key, value] of Object.entries(config.extraHeaders)) {
+        response.headers.set(key, value);
+      }
+    }
     return addRateLimitHeaders(response, config.maxRequests, ipResult.remaining, ipResult.resetAt);
   };
 }

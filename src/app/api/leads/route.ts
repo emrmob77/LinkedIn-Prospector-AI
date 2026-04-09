@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getExcludedBrands, applyBrandFilter } from '@/lib/brand-filter';
+import { mapLeadToResponse } from '@/lib/mappers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -104,40 +105,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapLeadToResponse(lead: any) {
-  const firstPost = lead.first_post
-    ? {
-        id: lead.first_post.id,
-        contentSnippet: lead.first_post.content
-          ? lead.first_post.content.substring(0, 200)
-          : null,
-        authorName: lead.first_post.author_name,
-      }
-    : null;
-
-  return {
-    id: lead.id,
-    userId: lead.user_id,
-    name: lead.name,
-    title: lead.title,
-    company: lead.company,
-    linkedinUrl: lead.linkedin_url,
-    stage: lead.stage,
-    score: lead.score,
-    scoreBreakdown: lead.score_breakdown,
-    painPoints: lead.pain_points,
-    keyInterests: lead.key_interests,
-    firstPostId: lead.first_post_id,
-    postCount: lead.post_count,
-    isActive: lead.is_active,
-    source: lead.source,
-    profilePicture: lead.profile_picture,
-    projectType: lead.project_type || null,
-    isCompetitor: lead.is_competitor ?? false,
-    createdAt: lead.created_at,
-    updatedAt: lead.updated_at,
-    archivedAt: lead.archived_at,
-    firstPost,
-  };
-}

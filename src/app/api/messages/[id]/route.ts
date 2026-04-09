@@ -1,28 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapMessage(row: any) {
-  return {
-    id: row.id,
-    leadId: row.lead_id,
-    userId: row.user_id,
-    messageType: row.message_type,
-    subject: row.subject,
-    body: row.body,
-    status: row.status,
-    generatedAt: row.generated_at,
-    approvedAt: row.approved_at,
-    approvedBy: row.approved_by,
-    sentAt: row.sent_at,
-    originalBody: row.original_body,
-    editCount: row.edit_count,
-    deliveryStatus: row.delivery_status || 'pending',
-    deliveryError: row.delivery_error || null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
+import { mapMessage } from '@/lib/mappers';
 
 export async function PATCH(
   request: NextRequest,

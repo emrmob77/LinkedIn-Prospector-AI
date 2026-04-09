@@ -4,11 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getUserAIClient } from '@/lib/ai-client';
 import { generateMessage, BusinessContext } from '@/services/aiClassificationService';
 import type { Lead, Post } from '@/types/models';
+import { mapMessage } from '@/lib/mappers';
+import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
 
-export async function POST(
+async function handler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context?: unknown
 ) {
+  const { params } = context as { params: { id: string } };
   try {
     const supabase = createClient();
 
@@ -225,27 +228,6 @@ export async function POST(
         },
       });
 
-    // Response: camelCase mapping
-    const mapMessage = (m: Record<string, unknown>) => ({
-      id: m.id,
-      leadId: m.lead_id,
-      userId: m.user_id,
-      messageType: m.message_type,
-      subject: m.subject,
-      body: m.body,
-      status: m.status,
-      generatedAt: m.generated_at,
-      approvedAt: m.approved_at,
-      approvedBy: m.approved_by,
-      sentAt: m.sent_at,
-      originalBody: m.original_body,
-      editCount: m.edit_count,
-      deliveryStatus: (m.delivery_status as string) || 'pending',
-      deliveryError: (m.delivery_error as string) || null,
-      createdAt: m.created_at,
-      updatedAt: m.updated_at,
-    });
-
     return NextResponse.json({
       messages: [mapMessage(dmMessage), mapMessage(emailMessage)],
     });
@@ -257,3 +239,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withRateLimit(handler, AI_RATE_LIMIT);

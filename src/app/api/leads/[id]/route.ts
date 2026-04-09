@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { mapLeadToResponse } from '@/lib/mappers';
 
 export async function GET(
   request: NextRequest,
@@ -70,30 +71,7 @@ export async function GET(
     }
 
     // Map lead to camelCase
-    const mappedLead = {
-      id: lead.id,
-      userId: lead.user_id,
-      name: lead.name,
-      title: lead.title,
-      company: lead.company,
-      linkedinUrl: lead.linkedin_url,
-      email: lead.email || null,
-      stage: lead.stage,
-      score: lead.score,
-      scoreBreakdown: lead.score_breakdown,
-      painPoints: lead.pain_points,
-      keyInterests: lead.key_interests,
-      firstPostId: lead.first_post_id,
-      postCount: lead.post_count,
-      isActive: lead.is_active,
-      source: lead.source,
-      profilePicture: lead.profile_picture,
-      projectType: lead.project_type || null,
-      isCompetitor: lead.is_competitor ?? false,
-      createdAt: lead.created_at,
-      updatedAt: lead.updated_at,
-      archivedAt: lead.archived_at,
-    };
+    const mappedLead = mapLeadToResponse(lead);
 
     // Map posts to camelCase
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,30 +215,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({
-      lead: {
-        id: updated.id,
-        userId: updated.user_id,
-        name: updated.name,
-        title: updated.title,
-        company: updated.company,
-        linkedinUrl: updated.linkedin_url,
-        email: updated.email || null,
-        stage: updated.stage,
-        score: updated.score,
-        scoreBreakdown: updated.score_breakdown,
-        painPoints: updated.pain_points,
-        keyInterests: updated.key_interests,
-        firstPostId: updated.first_post_id,
-        postCount: updated.post_count,
-        isActive: updated.is_active,
-        source: updated.source,
-        profilePicture: updated.profile_picture,
-        projectType: updated.project_type || null,
-        isCompetitor: updated.is_competitor ?? false,
-        createdAt: updated.created_at,
-        updatedAt: updated.updated_at,
-        archivedAt: updated.archived_at,
-      },
+      lead: mapLeadToResponse(updated),
     });
   } catch (error) {
     console.error('Lead PATCH error:', error);

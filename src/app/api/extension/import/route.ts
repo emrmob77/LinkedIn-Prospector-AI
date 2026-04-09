@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { processExtensionImport } from '@/services/extensionImportService';
 import type { ExtensionImportRequest, ExtensionPostData } from '@/types/extension';
 import { invalidatePattern } from '@/lib/cache';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
 // CORS headers for Chrome Extension requests
 const CORS_HEADERS = {
@@ -17,7 +18,13 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export async function POST(request: NextRequest) {
+const IMPORT_RATE_LIMIT = {
+  maxRequests: 5,
+  windowMs: 60_000,
+  extraHeaders: CORS_HEADERS,
+};
+
+async function handler(request: NextRequest) {
   try {
     // Check for Bearer token from extension first, then fall back to cookies
     const authHeader = request.headers.get('Authorization');
@@ -134,4 +141,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-
+export const POST = withRateLimit(handler, IMPORT_RATE_LIMIT);
