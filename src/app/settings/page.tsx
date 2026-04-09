@@ -34,9 +34,10 @@ import {
   Brain,
   Building,
   MessageSquare,
+  Mail,
 } from "lucide-react";
 import { PROVIDER_MODELS, VISION_MODELS } from "@/lib/ai-models";
-import type { UserSettingsPublic, AIProvider } from "@/types/models";
+import type { UserSettingsPublic, AIProvider, EmailProvider } from "@/types/models";
 
 type ApiKeyField = "anthropicApiKey" | "openaiApiKey" | "googleApiKey" | "openrouterApiKey";
 
@@ -109,6 +110,15 @@ export default function SettingsPage() {
   const [excludedBrands, setExcludedBrands] = useState<string[]>([]);
   const [brandInput, setBrandInput] = useState("");
 
+  // Email gonderim ayarlari
+  const [emailProvider, setEmailProvider] = useState<EmailProvider>("resend");
+  const [resendKey, setResendKey] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+
   // AI Prompt alanları
   const PROMPT_DEFAULTS = {
     classificationPrompt: "Kurumsal hediye, promosyon ürünleri, çalışan motivasyonu, etkinlik organizasyonu ile ilgili postları ilgili olarak işaretle. B2B hediye alımı sinyallerini ve rakip firma aktivitelerini de yakala.",
@@ -139,6 +149,12 @@ export default function SettingsPage() {
         setClassificationPrompt(data.classificationPrompt || PROMPT_DEFAULTS.classificationPrompt);
         setCompanyContext(data.companyContext || PROMPT_DEFAULTS.companyContext);
         setMessagePrompt(data.messagePrompt || PROMPT_DEFAULTS.messagePrompt);
+        // Email ayarlari
+        setEmailProvider(data.emailProvider || "resend");
+        setSenderEmail(data.senderEmail || "");
+        setSmtpHost(data.smtpHost || "");
+        setSmtpPort(data.smtpPort || 587);
+        setSmtpUser(data.smtpUser || "");
       }
     } catch { /* ignore */ } finally {
       setLoading(false);
@@ -156,11 +172,15 @@ export default function SettingsPage() {
         companyName, companySector, productDescription, targetCustomer, companyWebsite,
         excludedBrands,
         classificationPrompt, companyContext, messagePrompt,
+        emailProvider, senderEmail,
+        smtpHost, smtpPort, smtpUser,
       };
       if (keys.anthropicKey.trim()) body.anthropicApiKey = keys.anthropicKey.trim();
       if (keys.openaiKey.trim()) body.openaiApiKey = keys.openaiKey.trim();
       if (keys.googleKey.trim()) body.googleApiKey = keys.googleKey.trim();
       if (keys.openrouterKey.trim()) body.openrouterApiKey = keys.openrouterKey.trim();
+      if (resendKey.trim()) body.resendApiKey = resendKey.trim();
+      if (smtpPassword.trim()) body.smtpPassword = smtpPassword.trim();
 
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -174,6 +194,8 @@ export default function SettingsPage() {
       const data: UserSettingsPublic = await res.json();
       setSettings(data);
       setKeys({ anthropicKey: "", openaiKey: "", googleKey: "", openrouterKey: "" });
+      setResendKey("");
+      setSmtpPassword("");
       setMessage({ type: "success", text: "Ayarlar başarıyla kaydedildi" });
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Beklenmeyen hata" });
@@ -221,7 +243,7 @@ export default function SettingsPage() {
         )}
 
         <Tabs defaultValue="ai" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="ai" className="gap-1.5">
               <Bot className="h-3.5 w-3.5" />
               AI Yapılandırması
@@ -229,6 +251,10 @@ export default function SettingsPage() {
             <TabsTrigger value="company" className="gap-1.5">
               <Building2 className="h-3.5 w-3.5" />
               AI Talimatları
+            </TabsTrigger>
+            <TabsTrigger value="email" className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" />
+              Email Gönderim
             </TabsTrigger>
           </TabsList>
 
@@ -580,6 +606,193 @@ export default function SettingsPage() {
               <p className="text-[11px] text-muted-foreground">
                 Bu talimatlar yalnizca AI siniflandirma ve mesaj olusturma sureclerinde kullanilir.
                 Ucuncu taraflarla paylasilmaz. Talimatlarinizi ne kadar detayli yazarsaniz, AI o kadar isabetli calisir.
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* ============ Email Tab ============ */}
+          <TabsContent value="email" className="space-y-4 mt-4">
+            {/* Email Provider Secimi */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-base">Email Sağlayıcı</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  Onaylanan mesajları lead&apos;lere email olarak göndermek için bir sağlayıcı seçin
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { id: "resend" as EmailProvider, label: "Resend", desc: "API tabanlı" },
+                    { id: "gmail" as EmailProvider, label: "Gmail", desc: "Google hesabı" },
+                    { id: "smtp" as EmailProvider, label: "SMTP", desc: "Özel sunucu" },
+                  ]).map((p) => (
+                    <Button key={p.id}
+                      variant={emailProvider === p.id ? "default" : "outline"}
+                      size="sm" className="h-auto py-2 flex flex-col gap-0.5"
+                      onClick={() => setEmailProvider(p.id)}>
+                      <span className="text-xs font-medium">{p.label}</span>
+                      <span className="text-[10px] opacity-70">{p.desc}</span>
+                    </Button>
+                  ))}
+                </div>
+
+                <Separator />
+
+                {/* Gonderici Email */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Gönderici Email Adresi</Label>
+                  <Input
+                    type="email"
+                    placeholder={emailProvider === "gmail" ? "Gmail adresiniz otomatik kullanılır" : "noreply@firmam.com"}
+                    value={senderEmail}
+                    onChange={(e) => setSenderEmail(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    {emailProvider === "resend"
+                      ? "Resend'de doğrulanmış domain gerekir"
+                      : emailProvider === "gmail"
+                        ? "Boş bırakırsanız Gmail adresiniz kullanılır"
+                        : "SMTP sunucunuzda tanımlı email adresi"
+                    }
+                  </p>
+                </div>
+
+                {/* Resend Ayarlari */}
+                {emailProvider === "resend" && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Resend API Key</Label>
+                      {settings?.hasResendKey ? (
+                        <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 gap-1 h-5">
+                          <CheckCircle className="h-2.5 w-2.5" />Aktif
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 h-5">
+                          Girilmedi
+                        </Badge>
+                      )}
+                    </div>
+                    <Input
+                      type="password"
+                      placeholder={settings?.resendKeyHint || "re_..."}
+                      value={resendKey}
+                      onChange={(e) => setResendKey(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      resend.com/api-keys adresinden alınır
+                    </p>
+                  </div>
+                )}
+
+                {/* Gmail Ayarlari */}
+                {emailProvider === "gmail" && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Gmail Adresi</Label>
+                      <Input
+                        type="email"
+                        placeholder="ornek@gmail.com"
+                        value={smtpUser}
+                        onChange={(e) => setSmtpUser(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">App Password</Label>
+                        {settings?.hasSmtpPassword ? (
+                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 gap-1 h-5">
+                            <CheckCircle className="h-2.5 w-2.5" />Aktif
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 h-5">
+                            Girilmedi
+                          </Badge>
+                        )}
+                      </div>
+                      <Input
+                        type="password"
+                        placeholder="xxxx xxxx xxxx xxxx"
+                        value={smtpPassword}
+                        onChange={(e) => setSmtpPassword(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Google Hesabı → Güvenlik → 2 Adımlı Doğrulama açın → App Password oluşturun
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* SMTP Ayarlari */}
+                {emailProvider === "smtp" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2 space-y-1.5">
+                        <Label className="text-xs">SMTP Sunucu</Label>
+                        <Input
+                          placeholder="smtp.example.com"
+                          value={smtpHost}
+                          onChange={(e) => setSmtpHost(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Port</Label>
+                        <Input
+                          type="number"
+                          value={smtpPort}
+                          onChange={(e) => setSmtpPort(parseInt(e.target.value) || 587)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Kullanıcı Adı</Label>
+                      <Input
+                        placeholder="email@example.com"
+                        value={smtpUser}
+                        onChange={(e) => setSmtpUser(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Şifre</Label>
+                        {settings?.hasSmtpPassword ? (
+                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 gap-1 h-5">
+                            <CheckCircle className="h-2.5 w-2.5" />Aktif
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={smtpPassword}
+                        onChange={(e) => setSmtpPassword(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Outlook: smtp.office365.com:587 · Yahoo: smtp.mail.yahoo.com:465 · Yandex: smtp.yandex.com:465
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bilgi notu */}
+            <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+              <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground">
+                Email şifreleri AES-256-GCM ile şifreli saklanır. Pipeline&apos;da onaylanan mesajları lead&apos;lere
+                email olarak göndermek için kullanılır. Lead&apos;e önce email adresi eklemeniz gerekir.
               </p>
             </div>
           </TabsContent>
