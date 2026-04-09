@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Search,
   Users,
+  Package,
   FileText,
   LogOut,
   Settings,
@@ -36,6 +37,12 @@ const navItems = [
     label: "İletişim Hattı",
     href: "/pipeline",
     icon: Users,
+    badge: null,
+  },
+  {
+    label: "Ürünler",
+    href: "/products",
+    icon: Package,
     badge: null,
   },
   {
