@@ -11,6 +11,7 @@ import {
   LogOut,
   Settings,
   UserCircle,
+  MessageSquare,
 } from "lucide-react";
 import { LinkedinIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,12 @@ const navItems = [
     label: "İletişim Hattı",
     href: "/pipeline",
     icon: Users,
+    badge: null,
+  },
+  {
+    label: "Mesajlar",
+    href: "/messages",
+    icon: MessageSquare,
     badge: null,
   },
   {

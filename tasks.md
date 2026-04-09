@@ -176,20 +176,20 @@ Son guncelleme: 2026-04-09
   - [x] 77.1 Mesaj kartlarinda durum badge'leri (gonderildi / basarisiz / beklemede)
 
 ### P2 - Toplu Email Import (CSV)
-- [ ] 78. CSV parse utility
+- [x] 78. CSV parse utility
   - [ ] 78.1 CSV parser fonksiyonu (`src/lib/csv-parser.ts`)
   - [ ] 78.2 Kolon eslestirme (LinkedIn URL / isim+sirket / email)
   - [ ] 78.3 Validasyon (email format, URL format, bos satir kontrolu)
   - _Sorumluluk: Backend_
   - _Bagimlilık: Yok_
-- [ ] 79. Import API endpoint
+- [x] 79. Import API endpoint
   - [ ] 79.1 `POST /api/leads/import-csv` endpoint
   - [ ] 79.2 Mevcut lead eslestirme (LinkedIn URL veya isim+sirket ile)
   - [ ] 79.3 Yeni lead olusturma (eslesme yoksa)
   - [ ] 79.4 Import sonuc raporu donme (eklenen / eslesen / hata)
   - _Sorumluluk: Backend_
   - _Bagimlilık: 78_
-- [ ] 80. Import modal UI
+- [x] 80. Import modal UI
   - [ ] 80.1 Dosya yukleme alani (drag & drop)
   - [ ] 80.2 Kolon eslestirme onizleme tablosu
   - [ ] 80.3 Import sonuc raporu dialog'u
@@ -301,7 +301,7 @@ Son guncelleme: 2026-04-09
   - _Not: LinkedIn TOS uyumlulugu degerlendirilmeli_
 
 ### P2 - Frontend Eksiklikleri (Agent Analizi)
-- [ ] 102. Mesajlar sayfasi (`/messages`) mevcut degil
+- [x] 102. Mesajlar sayfasi (`/messages`)
   - [ ] 102.1 Tum mesajlari listeleyen ayri sayfa olustur
   - [ ] 102.2 Filtreler: durum (pending/approved/sent), tip (dm/email), lead
   - [ ] 102.3 Sidebar'a "Mesajlar" menu ogesi ekle

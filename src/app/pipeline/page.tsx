@@ -8,8 +8,10 @@ import { LeadDetailPanel } from "@/components/pipeline/lead-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmailImportDialog } from "@/components/pipeline/email-import-dialog";
 import {
   Download,
+  Upload,
   Users,
   BarChart3,
   AlertCircle,
@@ -49,6 +51,7 @@ type ViewMode = "kanban" | "table";
 export default function PipelinePage() {
   const [selectedLead, setSelectedLead] = useState<LeadData | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
+  const [importOpen, setImportOpen] = useState(false);
 
   // Stats state
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -275,6 +278,10 @@ export default function PipelinePage() {
             {scoring ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Target className="mr-2 h-3.5 w-3.5" />}
             {scoring ? "Puanlaniyor..." : "Lead Puanla"}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-3.5 w-3.5" />
+            Email Import
+          </Button>
           <Button variant="outline" size="sm" onClick={async () => {
             try {
               const res = await fetch("/api/export", {
@@ -428,6 +435,15 @@ export default function PipelinePage() {
           lead={selectedLead}
           onStageChange={handleStageChange}
           onCompetitorChange={handleCompetitorChange}
+        />
+
+        {/* CSV Email Import dialog */}
+        <EmailImportDialog
+          open={importOpen}
+          onClose={() => {
+            setImportOpen(false);
+            fetchLeads();
+          }}
         />
       </div>
     </AppLayout>
