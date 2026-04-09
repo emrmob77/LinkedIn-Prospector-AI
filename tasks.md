@@ -268,15 +268,15 @@ Son guncelleme: 2026-04-09
   - _Bagimlilık: 86_
 
 ### P2 - Backend Eksiklikleri (Agent Analizi)
-- [ ] 92. Leads API'de email alani eksik
+- [x] 92. Leads API'de email alani eksik
   - [ ] 92.1 `mapLeadToResponse()` fonksiyonuna `email` alani ekle (`src/app/api/leads/route.ts:119-142`)
   - [ ] 92.2 `LeadData` interface'ine `email: string | null` ekle (`pipeline-table.tsx:65-89`)
   - [ ] 92.3 Pipeline tablosunda email kolonu goster
   - _Sorumluluk: Backend + Frontend_
-- [ ] 93. Messages API'de deliveryStatus eksik
+- [x] 93. Messages API'de deliveryStatus eksik
   - [ ] 93.1 `GET /api/leads/:id/messages` response'una `deliveryStatus` ve `deliveryError` ekle
   - _Sorumluluk: Backend_
-- [ ] 94. Export'ta email alani eksik
+- [x] 94. Export'ta email alani eksik
   - [ ] 94.1 Export sorgusuna `email` alani ekle (`src/app/api/export/route.ts:123-126`)
   - [ ] 94.2 CSV/JSON ciktisina email kolonu dahil et
   - _Sorumluluk: Backend_
@@ -288,7 +288,7 @@ Son guncelleme: 2026-04-09
   - [ ] 96.1 `withRateLimit` wrapper'i AI endpoint'lerine ekle (classify, generate-message, analyze-image)
   - [ ] 96.2 Yazma endpoint'lerine ekle (export, extension/import)
   - _Sorumluluk: Backend_
-- [ ] 97. Dead code temizligi
+- [x] 97. Dead code temizligi
   - [ ] 97.1 `src/lib/queue.ts` (BullMQ kuyrugu) — tanimli ama hic kullanilmiyor, kaldir
   - [ ] 97.2 `src/lib/redis.ts` — Redis baglantisi tanimli ama aktif degil, kaldir veya Upstash'e gecir
   - _Sorumluluk: Backend_
@@ -298,10 +298,10 @@ Son guncelleme: 2026-04-09
   - [ ] 98.1 content.js'den gelen `meta` objesini popup'ta goster (basarili/basarisiz/confidence)
   - [ ] 98.2 Tarama sonrasi ozet: "15 post bulundu, 12 basariyla ayristirild, 3 hatali"
   - _Sorumluluk: Extension Developer_
-- [ ] 99. Extension ikonu eksik
+- [x] 99. Extension ikonu eksik
   - [ ] 99.1 manifest.json'a `default_icon` ekle (16x16, 32x32, 48x48, 128x128)
   - _Sorumluluk: Extension Developer_
-- [ ] 100. Service worker'da islenmemis mesajlar
+- [x] 100. Service worker'da islenmemis mesajlar
   - [ ] 100.1 `NEW_POSTS_DETECTED` ve `PAGE_CHANGED` icin handler ekle veya kaldir
   - _Sorumluluk: Extension Developer_
 - [ ] 101. LinkedIn profil sayfasindan email yakalama

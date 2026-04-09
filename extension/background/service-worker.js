@@ -468,6 +468,36 @@
   // HANDLER MAP - Switch-case yerine obje map
   // ============================================
 
+  // NEW_POSTS_DETECTED: Content script yeni postlar algiladiginda
+  async function handleNewPostsDetected(message, sender) {
+    var tabId = sender && sender.tab ? sender.tab.id : null;
+    var postCount = message.postCount || 0;
+    console.debug('[ServiceWorker] Yeni postlar algilandi:', postCount, 'post, sayfa tipi:', message.pageType);
+
+    // Badge'i post sayisiyla guncelle
+    if (tabId && postCount > 0) {
+      var badgeText = postCount > 99 ? '99+' : String(postCount);
+      chrome.action.setBadgeText({ text: badgeText, tabId: tabId });
+      chrome.action.setBadgeBackgroundColor({ color: '#16a34a', tabId: tabId }); // Yesil - yeni post var
+      chrome.action.setBadgeTextColor({ color: '#ffffff', tabId: tabId });
+    }
+
+    return { success: true };
+  }
+
+  // PAGE_CHANGED: Content script sayfa degisikligi algiladiginda
+  async function handlePageChanged(message, sender) {
+    var tabId = sender && sender.tab ? sender.tab.id : null;
+    console.debug('[ServiceWorker] Sayfa degisti:', message.pageType, message.url);
+
+    // Yeni sayfa icin badge'i sayfa tipi ile guncelle
+    if (tabId && message.url) {
+      updateBadge(tabId, message.url);
+    }
+
+    return { success: true };
+  }
+
   var messageHandlers = {
     'SCAN_POSTS': handleScanPosts,
     'IMPORT_POSTS': handleImportPosts,
@@ -475,6 +505,8 @@
     'SET_AUTH_TOKEN': handleSetAuthToken,
     'CHECK_CONNECTION': handleCheckConnection,
     'GET_PAGE_TYPE': handleGetPageType,
+    'NEW_POSTS_DETECTED': handleNewPostsDetected,
+    'PAGE_CHANGED': handlePageChanged,
   };
 
   // ============================================
