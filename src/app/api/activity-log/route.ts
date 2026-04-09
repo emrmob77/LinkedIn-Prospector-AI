@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import type { ActionType, EntityType } from '@/types/enums';
+import * as cache from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,15 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT));
     const actionType = searchParams.get('actionType') as ActionType | null;
     const entityType = searchParams.get('entityType') as EntityType | null;
+
+    // Cache kontrolu (TTL: 10sn)
+    const ACTIVITY_LOG_CACHE_TTL = 10_000;
+    const queryHash = cache.hashParams({ page: String(page), limit: String(limit), actionType, entityType });
+    const cacheKeyStr = `activity-log:${user.id}:${queryHash}`;
+    const cached = cache.get<{ activities: unknown[]; total: number; page: number; totalPages: number }>(cacheKeyStr);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     const offset = (page - 1) * limit;
 
@@ -88,12 +98,10 @@ export async function GET(request: NextRequest) {
       createdAt: row.created_at,
     }));
 
-    return NextResponse.json({
-      activities,
-      total,
-      page,
-      totalPages,
-    });
+    const response = { activities, total, page, totalPages };
+    cache.set(cacheKeyStr, response, ACTIVITY_LOG_CACHE_TTL);
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Activity log hatasi:', error);
     return NextResponse.json(

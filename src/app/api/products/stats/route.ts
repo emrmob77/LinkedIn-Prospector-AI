@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import * as cache from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,15 @@ export async function GET(request: NextRequest) {
     const minCount = Math.max(1, parseInt(searchParams.get('minCount') || '1', 10) || 1);
     const filterBrand = searchParams.get('brand')?.toLowerCase().trim() || null;
     const filterAuthor = searchParams.get('author')?.trim() || null;
+
+    // Cache kontrolu (TTL: 120sn — urun verisi sik degismez)
+    const PRODUCT_STATS_CACHE_TTL = 120_000;
+    const queryHash = cache.hashParams({ minCount: String(minCount), brand: filterBrand, author: filterAuthor });
+    const cacheKey = `products:stats:${userId}:${queryHash}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     // 1. Adim: Kullanicinin search_run id'lerini al
     const { data: searchRuns, error: searchRunError } = await supabase
@@ -240,7 +250,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((relevanceScoreSum / relevanceScoreCount) * 10) / 10
       : 0;
 
-    return NextResponse.json({
+    const response = {
       totalAnalyzedPosts: filteredPosts.length,
       totalProducts,
       uniqueProductCount: productCounts.size,
@@ -252,7 +262,11 @@ export async function GET(request: NextRequest) {
         availableBrands: Array.from(allBrandsSet).sort(),
         availableAuthors: Array.from(allAuthorsSet).sort(),
       },
-    });
+    };
+
+    cache.set(cacheKey, response, PRODUCT_STATS_CACHE_TTL);
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Product stats hatasi:', error);
     return NextResponse.json(

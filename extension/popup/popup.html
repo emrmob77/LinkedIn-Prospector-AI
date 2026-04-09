@@ -85,6 +85,26 @@
           <span class="posts-title">Bulunan Postlar</span>
           <span id="post-count" class="badge badge-count">0</span>
         </div>
+
+        <!-- Scan Metrikleri -->
+        <div id="scan-metrics" class="metrics-bar" style="display:none">
+          <span id="metric-total"></span> post bulundu &middot;
+          <span id="metric-parsed"></span> ba&#351;ar&#305;l&#305; &middot;
+          <span id="metric-failed" class="text-warning"></span> hatal&#305;
+          <span id="metric-confidence" class="confidence-badge"></span>
+        </div>
+
+        <!-- Hatali Post Detaylari -->
+        <div id="fail-details" class="fail-details" style="display:none">
+          <button id="btn-toggle-fails" class="btn-toggle-fails" type="button">
+            <svg class="btn-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            <span id="btn-toggle-fails-text">Hata detaylarini goster</span>
+          </button>
+          <ul id="fail-reasons-list" class="fail-reasons-list" style="display:none"></ul>
+        </div>
+
         <div id="post-list" class="post-list">
           <!-- Post itemleri JS ile doldurulacak -->
         </div>

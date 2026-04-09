@@ -124,8 +124,33 @@ export function cacheKey(userId: string, endpoint: string): string {
 }
 
 /**
+ * Query parametrelerinden deterministik bir hash string uretir.
+ * Cache key'lerde kullanilir.
+ */
+export function hashParams(params: Record<string, string | null | undefined>): string {
+  const sorted = Object.keys(params)
+    .sort()
+    .filter((k) => params[k] != null && params[k] !== '')
+    .map((k) => `${k}=${params[k]}`)
+    .join('&');
+  // Basit djb2 hash — kripto guvenlik gerektirmez
+  let hash = 5381;
+  for (let i = 0; i < sorted.length; i++) {
+    hash = ((hash << 5) + hash + sorted.charCodeAt(i)) & 0xffffffff;
+  }
+  return hash.toString(36);
+}
+
+/**
  * Test amaciyla store'u temizler.
  */
 export function clearCacheStore(): void {
   store.clear();
+}
+
+/**
+ * Mevcut cache store boyutunu doner (test/admin icin).
+ */
+export function cacheStoreSize(): number {
+  return store.size;
 }

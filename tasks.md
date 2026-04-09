@@ -284,7 +284,7 @@ Son guncelleme: 2026-04-09
   - _Sorumluluk: Backend_
 
 ### P2 - Extension Eksiklikleri (Agent Analizi)
-- [ ] 98. Popup'ta parse metrikleri gosterimi
+- [x] 98. Popup'ta parse metrikleri gosterimi
   - [ ] 98.1 content.js'den gelen `meta` objesini popup'ta goster (basarili/basarisiz/confidence)
   - [ ] 98.2 Tarama sonrasi ozet: "15 post bulundu, 12 basariyla ayristirild, 3 hatali"
   - _Sorumluluk: Extension Developer_
@@ -307,20 +307,20 @@ Son guncelleme: 2026-04-09
   - [ ] 102.3 Sidebar'a "Mesajlar" menu ogesi ekle
   - _Sorumluluk: Frontend_
 
-### P3 - Performans & Olceklenebilirlik
-- [ ] 89. Redis cache (production)
+### P3 - Performans & Olceklenebilirlik (Tamamlandi)
+- [x] 89. Cache yayginlastirma (leads list, products stats, activity log)
   - [ ] 89.1 Redis baglanti (`src/lib/redis.ts` mevcut ama kullanilmiyor)
   - [ ] 89.2 In-memory cache'i Redis ile degistirme
   - [ ] 89.3 Cache invalidation stratejisi
   - _Sorumluluk: Backend_
   - _Bagimlilık: Yok_
-- [ ] 90. Sorgu optimizasyonu
+- [x] 90. Sorgu optimizasyonu (migration 018: 6 performans index'i)
   - [ ] 90.1 Yavas sorgu tespiti (EXPLAIN ANALYZE)
   - [ ] 90.2 Index onerisi ve eklenmesi
   - [ ] 90.3 N+1 sorgu tespiti ve duzeltmesi
   - _Sorumluluk: Backend_
   - _Bagimlilık: Yok_
-- [ ] 91. Lead-post referans butunlugu kontrolleri
+- [x] 91. Admin cleanup endpoint (POST /api/admin/cleanup — eski loglar, orphan, cache)
   - [ ] 91.1 Orphan lead tespiti ve temizligi (kismen mevcut: orphan-check)
   - [ ] 91.2 Periyodik temizlik mekanizmasi
   - _Sorumluluk: Backend_

@@ -64,6 +64,16 @@
     progressText: $('progress-text'),
     // Footer
     lastScanTime: $('last-scan-time'),
+    // Scan metrikleri
+    scanMetrics: $('scan-metrics'),
+    metricTotal: $('metric-total'),
+    metricParsed: $('metric-parsed'),
+    metricFailed: $('metric-failed'),
+    metricConfidence: $('metric-confidence'),
+    failDetails: $('fail-details'),
+    btnToggleFails: $('btn-toggle-fails'),
+    btnToggleFailsText: $('btn-toggle-fails-text'),
+    failReasonsList: $('fail-reasons-list'),
     // Toast
     toast: $('toast'),
     toastIcon: $('toast-icon'),
@@ -379,6 +389,9 @@
         state.scannedPosts = response.posts || [];
         renderPosts(state.scannedPosts);
 
+        // Scan metriklerini goster
+        displayScanMetrics(response.meta || null);
+
         // Son tarama bilgisini kaydet
         var scanInfo = {
           postCount: state.scannedPosts.length,
@@ -423,6 +436,64 @@
       if (state.currentPageType && !state.currentPageType.supported) {
         el.btnScan.disabled = true;
       }
+    }
+  }
+
+  // ===========================================
+  // SCAN METRIKLERINI GOSTER
+  // ===========================================
+  function displayScanMetrics(meta) {
+    if (!meta) {
+      el.scanMetrics.style.display = 'none';
+      el.failDetails.style.display = 'none';
+      return;
+    }
+
+    // Metrikleri doldur
+    el.metricTotal.textContent = meta.total || 0;
+    el.metricParsed.textContent = meta.parsed || 0;
+    el.metricFailed.textContent = meta.failed || 0;
+    el.scanMetrics.style.display = 'flex';
+
+    // Confidence gostergesi
+    var conf = meta.avgAuthorNameConfidence || 0;
+    var confEl = el.metricConfidence;
+    if (conf >= 2.5) {
+      confEl.textContent = '\u25CF Guvenilir';
+      confEl.style.color = '#22c55e';
+    } else if (conf >= 1.5) {
+      confEl.textContent = '\u25CF Orta';
+      confEl.style.color = '#eab308';
+    } else {
+      confEl.textContent = '\u25CF Dusuk';
+      confEl.style.color = '#ef4444';
+    }
+
+    // Hatali post detaylari
+    var failReasons = meta.failReasons || [];
+    if (meta.failed > 0 && failReasons.length > 0) {
+      el.failDetails.style.display = 'block';
+      el.failReasonsList.innerHTML = '';
+      el.failReasonsList.style.display = 'none';
+      el.btnToggleFails.classList.remove('expanded');
+      el.btnToggleFailsText.textContent = 'Hata detaylarini goster (' + failReasons.length + ')';
+
+      // Hata nedenlerini grupla (ayni neden birden fazla olabilir)
+      var reasonCounts = {};
+      failReasons.forEach(function (reason) {
+        var key = reason || 'Bilinmeyen hata';
+        reasonCounts[key] = (reasonCounts[key] || 0) + 1;
+      });
+
+      Object.keys(reasonCounts).forEach(function (reason) {
+        var li = document.createElement('li');
+        li.className = 'fail-reason-item';
+        var countText = reasonCounts[reason] > 1 ? ' (' + reasonCounts[reason] + 'x)' : '';
+        li.textContent = reason + countText;
+        el.failReasonsList.appendChild(li);
+      });
+    } else {
+      el.failDetails.style.display = 'none';
     }
   }
 
@@ -551,6 +622,7 @@
         showToast(count + ' post basariyla ice aktarildi!', 'success');
         state.scannedPosts = [];
         renderPosts([]);
+        displayScanMetrics(null);
 
         // Son tarama bilgisini guncelle
         updateLastScanDisplay(Date.now(), count);
@@ -731,6 +803,20 @@
 
   // Postlari ice aktar
   el.btnImport.addEventListener('click', handleImport);
+
+  // Hata detaylari toggle
+  el.btnToggleFails.addEventListener('click', function () {
+    var isExpanded = el.btnToggleFails.classList.contains('expanded');
+    if (isExpanded) {
+      el.btnToggleFails.classList.remove('expanded');
+      el.failReasonsList.style.display = 'none';
+      el.btnToggleFailsText.textContent = el.btnToggleFailsText.textContent.replace('Gizle', 'Goster');
+    } else {
+      el.btnToggleFails.classList.add('expanded');
+      el.failReasonsList.style.display = 'flex';
+      el.btnToggleFailsText.textContent = el.btnToggleFailsText.textContent.replace('Goster', 'Gizle');
+    }
+  });
 
   // Ayarlar linki (simdilik bos)
   $('btn-settings').addEventListener('click', function (e) {
