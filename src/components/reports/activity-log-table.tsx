@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   Search, UserPlus, CheckCircle, ArrowRight, Filter, ChevronLeft, ChevronRight,
-  Zap, Download, Inbox, AlertCircle, Puzzle, FileText,
+  Zap, Download, Inbox, AlertCircle, Puzzle, FileText, ShieldAlert,
 } from "lucide-react";
 
 const ACTION_TYPES = [
@@ -25,6 +25,7 @@ const ACTION_TYPES = [
   { value: "message_generated", label: "Mesaj Oluşturuldu" },
   { value: "message_approved", label: "Mesaj Onaylandı" },
   { value: "export_created", label: "Dışa Aktarıldı" },
+  { value: "competitor_toggled", label: "Rakip İşaretlendi" },
 ];
 
 const actionIcons: Record<string, React.ReactNode> = {
@@ -37,6 +38,7 @@ const actionIcons: Record<string, React.ReactNode> = {
   message_generated: <Zap className="h-3.5 w-3.5 text-amber-500" />,
   message_approved: <CheckCircle className="h-3.5 w-3.5 text-green-500" />,
   export_created: <Download className="h-3.5 w-3.5 text-cyan-500" />,
+  competitor_toggled: <ShieldAlert className="h-3.5 w-3.5 text-red-500" />,
 };
 
 const actionLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
@@ -49,6 +51,7 @@ const actionLabels: Record<string, { label: string; variant: "default" | "second
   message_generated: { label: "Mesaj Oluşturuldu", variant: "secondary" },
   message_approved: { label: "Mesaj Onaylandı", variant: "default" },
   export_created: { label: "Dışa Aktarıldı", variant: "outline" },
+  competitor_toggled: { label: "Rakip İşaretlendi", variant: "outline" },
 };
 
 function formatDetails(actionType: string, details: Record<string, unknown>): string {
@@ -62,6 +65,8 @@ function formatDetails(actionType: string, details: Record<string, unknown>): st
       return `${details.classified || 0} post sınıflandırıldı, ${details.relevant || 0} ilgili`;
     case "extension_import":
       return `${details.postsImported || 0} post import edildi`;
+    case "competitor_toggled":
+      return details.newValue ? "Rakip olarak işaretlendi" : "Rakip işareti kaldırıldı";
     case "message_generated":
       return details.leadName ? `${details.leadName} için mesaj oluşturuldu` : "Mesaj oluşturuldu";
     case "message_approved":

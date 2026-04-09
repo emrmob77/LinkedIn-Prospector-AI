@@ -15,6 +15,7 @@ import {
   Download,
   GitMerge,
   Globe,
+  ShieldAlert,
 } from "lucide-react";
 import type { ActionType } from "@/types/enums";
 
@@ -103,6 +104,12 @@ const ACTION_CONFIG: Record<
     badgeLabel: "Extension",
     badgeVariant: "secondary",
   },
+  competitor_toggled: {
+    icon: <ShieldAlert className="h-4 w-4 text-red-500" />,
+    title: "Rakip İşaretlendi",
+    badgeLabel: "Lead",
+    badgeVariant: "outline",
+  },
 };
 
 function formatRelativeTime(timestamp: string): string {
@@ -153,6 +160,10 @@ function getActivityDescription(activity: ActivityItem): string {
     case "extension_import": {
       const count = details.postsCount as number | undefined;
       return count ? `${count} post içe aktarıldı` : "Extension verisi aktarıldı";
+    }
+    case "competitor_toggled": {
+      const newValue = details.newValue as boolean | undefined;
+      return newValue ? "Rakip olarak işaretlendi" : "Rakip işareti kaldırıldı";
     }
     default:
       return activity.entityType

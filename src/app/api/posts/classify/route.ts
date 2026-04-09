@@ -6,6 +6,7 @@ import type { BusinessContext } from '@/services/aiClassificationService';
 import { extractLeadsBatch } from '@/services/leadExtractionService';
 import { getUserAIClient } from '@/lib/ai-client';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getExcludedBrands } from '@/lib/brand-filter';
 import type { Post, Lead } from '@/types/models';
 import { logActivity } from '@/services/activityLogService';
 import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
@@ -219,23 +220,7 @@ async function handler(request: NextRequest) {
             }));
 
             // Haric tutulan markalari cek
-            let excludedBrands: string[] = [];
-            try {
-              const { data: settingsRow } = await supabaseAdmin
-                .from('user_settings')
-                .select('excluded_brands, company_name')
-                .eq('user_id', userId)
-                .single();
-              if (settingsRow) {
-                const brands = Array.isArray(settingsRow.excluded_brands)
-                  ? settingsRow.excluded_brands
-                  : JSON.parse(settingsRow.excluded_brands || '[]');
-                excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b);
-                if (settingsRow.company_name && !excludedBrands.some((b: string) => b.toLowerCase() === (settingsRow.company_name as string).toLowerCase())) {
-                  excludedBrands.push(settingsRow.company_name as string);
-                }
-              }
-            } catch { /* ignore */ }
+            const excludedBrands = await getExcludedBrands(userId);
 
             const leadResult = await extractLeadsBatch(relevantPosts, supabaseAdmin, userId, excludedBrands);
             leadsCreated = leadResult.created;

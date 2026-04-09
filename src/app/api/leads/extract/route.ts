@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractLeadsBatch } from '@/services/leadExtractionService';
+import { getExcludedBrands } from '@/lib/brand-filter';
 import type { Post } from '@/types/models';
 import { withRateLimit, AI_RATE_LIMIT } from '@/lib/with-rate-limit';
 
@@ -61,29 +61,8 @@ async function handler() {
       updatedAt: new Date(row.updated_at),
     }));
 
-    // Haric tutulan markalari ayarlardan cek
-    let excludedBrands: string[] = [];
-    const { data: settings } = await supabaseAdmin
-      .from('user_settings')
-      .select('excluded_brands, company_name')
-      .eq('user_id', user.id)
-      .single();
-
-    if (settings) {
-      try {
-        const brands = Array.isArray(settings.excluded_brands)
-          ? settings.excluded_brands
-          : JSON.parse(settings.excluded_brands || '[]');
-        excludedBrands = brands.filter((b: unknown) => typeof b === 'string' && b.trim());
-      } catch { /* ignore */ }
-      // Kendi firma adini da haric tut
-      if (settings.company_name && typeof settings.company_name === 'string') {
-        const companyName = settings.company_name.trim();
-        if (companyName && !excludedBrands.some((b: string) => b.toLowerCase() === companyName.toLowerCase())) {
-          excludedBrands.push(companyName);
-        }
-      }
-    }
+    // Haric tutulan markalari cek
+    const excludedBrands = await getExcludedBrands(user.id);
 
     const result = await extractLeadsBatch(posts, supabase, user.id, excludedBrands);
 

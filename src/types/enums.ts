@@ -30,7 +30,8 @@ export type ActionType =
   | 'message_sent'
   | 'lead_merged'
   | 'export_created'
-  | 'extension_import';
+  | 'extension_import'
+  | 'competitor_toggled';
 
 export type MessageType = 'dm' | 'email';
 

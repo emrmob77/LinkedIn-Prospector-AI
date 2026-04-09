@@ -49,7 +49,7 @@ export async function PATCH(
     // Activity log kaydet (fire-and-forget)
     logActivity({
       supabase,
-      actionType: 'lead_stage_changed',
+      actionType: 'competitor_toggled',
       userId: user.id,
       entityType: 'lead',
       entityId: updatedLead.id,
