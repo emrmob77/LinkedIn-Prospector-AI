@@ -251,6 +251,7 @@ async function handler(request: NextRequest) {
                       title: row.title,
                       company: row.company,
                       linkedinUrl: row.linkedin_url,
+                      email: row.email || null,
                       stage: row.stage,
                       score: Number(row.score),
                       scoreBreakdown: row.score_breakdown,

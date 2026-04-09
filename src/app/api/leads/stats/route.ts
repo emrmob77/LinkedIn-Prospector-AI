@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getExcludedBrands, applyBrandFilter } from '@/lib/brand-filter';
 import { PIPELINE_STAGES } from '@/types/enums';
+import { get, set, cacheKey } from '@/lib/cache';
+
+const CACHE_TTL_MS = 30_000; // 30 saniye
 
 export async function GET() {
   try {
@@ -13,6 +16,15 @@ export async function GET() {
         { error: 'Kimlik dogrulama gerekli' },
         { status: 401 }
       );
+    }
+
+    // Cache kontrol
+    const key = cacheKey(user.id, 'leads:stats');
+    const cached = get<{ stages: Record<string, number>; total: number; avgScore: number }>(key);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' },
+      });
     }
 
     // Haric tutulan markalari cek
@@ -56,7 +68,14 @@ export async function GET() {
       ? Math.round((allLeads.reduce((sum, l) => sum + (l.score || 0), 0) / total) * 100) / 100
       : 0;
 
-    return NextResponse.json({ stages, total, avgScore });
+    const responseData = { stages, total, avgScore };
+
+    // Sonucu cache'le (30sn)
+    set(key, responseData, CACHE_TTL_MS);
+
+    return NextResponse.json(responseData, {
+      headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' },
+    });
   } catch (error) {
     console.error('Leads stats error:', error);
     const message = error instanceof Error ? error.message : 'Beklenmeyen hata';

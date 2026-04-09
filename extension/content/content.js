@@ -113,10 +113,15 @@
 
     try {
       var posts = LinkedInParser.parsePostCards();
+      var meta = posts.meta || null;
       state.postCount = posts.length;
       state.lastScanTime = Date.now();
 
-      console.debug(LOG_PREFIX, 'Tarama tamamlandi:', posts.length, 'post bulundu. Sayfa tipi:', pageType);
+      console.debug(
+        LOG_PREFIX, 'Tarama tamamlandi:', posts.length, 'post bulundu.',
+        'Sayfa tipi:', pageType,
+        meta ? ('| Basarisiz: ' + meta.failed + ' | Ort. confidence: ' + meta.avgAuthorNameConfidence) : ''
+      );
 
       return {
         success: true,
@@ -124,6 +129,7 @@
         pageType: pageType,
         postCount: posts.length,
         url: window.location.href,
+        meta: meta,
       };
     } catch (err) {
       console.debug(LOG_PREFIX, 'Parse hatasi:', err);

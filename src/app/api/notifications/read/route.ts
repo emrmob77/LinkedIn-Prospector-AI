@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { invalidatePattern } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,9 @@ export async function PATCH(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Cache invalidation — bildirim sayisi eskidi
+    invalidatePattern('notifications:count');
 
     return NextResponse.json({ updated: data?.length ?? 0 });
   } catch (error) {

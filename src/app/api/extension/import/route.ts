@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { processExtensionImport } from '@/services/extensionImportService';
 import type { ExtensionImportRequest, ExtensionPostData } from '@/types/extension';
+import { invalidatePattern } from '@/lib/cache';
 
 // CORS headers for Chrome Extension requests
 const CORS_HEADERS = {
@@ -103,6 +104,9 @@ export async function POST(request: NextRequest) {
       },
       validPosts
     );
+
+    // Cache invalidation — dashboard istatistikleri eskidi
+    invalidatePattern('dashboard:stats');
 
     // Map result fields to match what the extension expects
     const skippedCount = posts.length - validPosts.length;

@@ -46,6 +46,7 @@ export async function POST(
       title: row.title,
       company: row.company,
       linkedinUrl: row.linkedin_url,
+      email: row.email || null,
       stage: row.stage,
       score: row.score,
       scoreBreakdown: row.score_breakdown,
@@ -239,6 +240,8 @@ export async function POST(
       sentAt: m.sent_at,
       originalBody: m.original_body,
       editCount: m.edit_count,
+      deliveryStatus: (m.delivery_status as string) || 'pending',
+      deliveryError: (m.delivery_error as string) || null,
       createdAt: m.created_at,
       updatedAt: m.updated_at,
     });

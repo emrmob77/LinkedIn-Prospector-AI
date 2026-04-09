@@ -36,3 +36,5 @@ export type ActionType =
 export type MessageType = 'dm' | 'email';
 
 export type EntityType = 'post' | 'lead' | 'message' | 'search_run' | 'export';
+
+export type DeliveryStatus = 'pending' | 'sent' | 'delivered' | 'bounced' | 'failed';

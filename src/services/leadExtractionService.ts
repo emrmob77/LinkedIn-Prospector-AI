@@ -165,6 +165,7 @@ export async function checkDuplicateLead(
       title: data.title,
       company: data.company,
       linkedinUrl: data.linkedin_url,
+      email: data.email || null,
       stage: data.stage,
       score: Number(data.score),
       scoreBreakdown: data.score_breakdown,

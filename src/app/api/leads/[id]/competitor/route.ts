@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { logActivity } from '@/services/activityLogService';
+import { invalidatePattern } from '@/lib/cache';
 
 export async function PATCH(
   request: NextRequest,
@@ -45,6 +46,10 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Cache invalidation — lead ve dashboard istatistikleri eskidi
+    invalidatePattern('leads:stats');
+    invalidatePattern('dashboard:stats');
 
     // Activity log kaydet (fire-and-forget)
     logActivity({

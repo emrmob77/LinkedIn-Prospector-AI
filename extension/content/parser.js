@@ -5,6 +5,11 @@
 // attribute secicileri kullanir
 //
 // Guncelleme: Parser dayanikliligi arttirildi
+// - data-testid oncelikli selector stratejisi
+// - Coklu dil destegi (regex pattern'lar)
+// - Parse basari metrikleri ve confidence skorlari
+// - Selector self-test mekanizmasi
+// - Engagement cikarimi guclendirildi
 // - Fallback selector zincirleri eklendi
 // - Hashtag ve mention cikarimi eklendi
 // - authorCompany cikarimi guclendirildi
@@ -30,6 +35,27 @@ var LinkedInParser = (function () {
     }
     console.log.apply(console, args);
   }
+
+  // ============================================================
+  //  COKLU DIL REGEX PATTERN'LARI
+  // ============================================================
+
+  // Profil/profile alt text pattern'i (TR, EN, ES, IT, DE, FR, PT)
+  var PROFILE_REGEX = /profil|profile|perfil|profilo/i;
+
+  // Sirket/company alt text pattern'i (TR, EN, ES, DE, FR, PT, IT)
+  var COMPANY_REGEX = /[sş]irket|company|empresa|unternehmen|soci[eé]t[eé]|azienda|empresa/i;
+
+  // Profil goruntuleme pattern'i (alt text / aria-label icin)
+  var VIEW_PROFILE_REGEX = /profil\w*\s*(g[oö]r[uü]nt[uü]le|a[cç]|bak)|view\s*profile|ver\s*perfil|profil\s*anzeigen|voir\s*le\s*profil|visualizar\s*perfil/i;
+
+  // Sirket goruntuleme pattern'i (alt text / aria-label icin)
+  var VIEW_COMPANY_REGEX = /[sş]irket\w*\s*(g[oö]r[uü]nt[uü]le|a[cç]|bak|sayfas)|view\s*company|company\s*page|ver\s*empresa|unternehmen\s*anzeigen/i;
+
+  // Engagement keyword'leri — coklu dil
+  var LIKES_REGEX = /tepki|reaction|begen|like|gef[aä]llt|j'aime|mi\s*piace|me\s*gusta/i;
+  var COMMENTS_REGEX = /yorum|comment|kommentar|commentaire|commento|comentario/i;
+  var SHARES_REGEX = /yeniden|repost|share|payla[sş][iı]m|teilen|partager|condivid|compartir/i;
 
   // ---- Sayfa Tipini URL'ye Gore Belirle ----
   function detectPageType(url) {
@@ -120,11 +146,33 @@ var LinkedInParser = (function () {
     return [];
   }
 
+  // ============================================================
+  //  CONFIDENCE SKORLAMA
+  // ============================================================
+
+  // Confidence seviyeleri:
+  // 0 = bulunamadi
+  // 1 = son fallback ile bulundu (kirilgan)
+  // 2 = orta guvenilirlik (aria-label, p-tag sirasi vb.)
+  // 3 = stabil selector ile bulundu (data-testid)
+
+  /**
+   * Extraction sonucu olusturur — deger ve confidence ile.
+   */
+  function makeExtraction(value, confidence) {
+    return { value: value || '', confidence: confidence || 0 };
+  }
+
   // ---- Sayfadaki Tum Post Kartlarini Parse Et ----
+  // Artik metadata iceren obje dondurur: { posts, meta }
+  // Geriye uyumluluk: content.js posts dizisine direkt erisebilir
   function parsePostCards() {
     var postElements = findPostElements();
     var posts = [];
     var seenKeys = {}; // Tekrar onleme
+    var successCount = 0;
+    var failCount = 0;
+    var failReasons = {};
 
     for (var i = 0; i < postElements.length; i++) {
       try {
@@ -135,15 +183,55 @@ var LinkedInParser = (function () {
           if (!seenKeys[key]) {
             seenKeys[key] = true;
             posts.push(post);
+            successCount++;
           }
+        } else {
+          failCount++;
+          var reason = 'empty_or_ad';
+          failReasons[reason] = (failReasons[reason] || 0) + 1;
         }
       } catch (err) {
+        failCount++;
+        var errReason = 'parse_error';
+        failReasons[errReason] = (failReasons[errReason] || 0) + 1;
         debug('Post parse hatasi (index ' + i + '):', err.message);
-        // Bir post parse edilemezse digerleri engellenmez
       }
     }
 
-    console.debug(LOG + ' ' + posts.length + '/' + postElements.length + ' post basariyla parse edildi.');
+    // failReasons'i okunabilir diziye cevir
+    var failReasonList = [];
+    for (var reason in failReasons) {
+      if (failReasons.hasOwnProperty(reason)) {
+        failReasonList.push(reason + ': ' + failReasons[reason]);
+      }
+    }
+
+    // Confidence istatistikleri
+    var confidenceSum = 0;
+    for (var ci = 0; ci < posts.length; ci++) {
+      if (posts[ci]._confidence) {
+        confidenceSum += posts[ci]._confidence.authorName || 0;
+      }
+    }
+    var avgConfidence = posts.length > 0 ? (confidenceSum / posts.length).toFixed(1) : 0;
+
+    var meta = {
+      total: postElements.length,
+      parsed: successCount,
+      failed: failCount,
+      failReasons: failReasonList,
+      avgAuthorNameConfidence: parseFloat(avgConfidence),
+    };
+
+    console.debug(
+      LOG + ' ' + successCount + '/' + postElements.length + ' post basariyla parse edildi.' +
+      ' Basarisiz: ' + failCount +
+      (failReasonList.length > 0 ? ' (' + failReasonList.join(', ') + ')' : '') +
+      ' | Ort. yazar adi guvenilirligi: ' + avgConfidence + '/3'
+    );
+
+    // Geriye uyumlu dizi donusumu: posts dizisi uzerinde meta property
+    posts.meta = meta;
     return posts;
   }
 
@@ -169,8 +257,9 @@ var LinkedInParser = (function () {
     // --- Yazar tipi ---
     var authorType = detectAuthorType(authorHref);
 
-    // --- Yazar adi ---
-    var authorName = extractAuthorName(container, authorLink);
+    // --- Yazar adi (confidence ile) ---
+    var authorNameResult = extractAuthorNameWithConfidence(container, authorLink);
+    var authorName = authorNameResult.value;
 
     // --- Post icerigi ---
     var content = extractPostContent(container);
@@ -180,11 +269,13 @@ var LinkedInParser = (function () {
       return null;
     }
 
-    // --- Yazar profil resmi ---
-    var authorImage = extractAuthorImage(container);
+    // --- Yazar profil resmi (confidence ile) ---
+    var authorImageResult = extractAuthorImageWithConfidence(container);
+    var authorImage = authorImageResult.value;
 
-    // --- Yazar title/role (sadece Person icin anlamli) ---
-    var authorTitle = extractAuthorTitle(container, authorLink);
+    // --- Yazar title/role (confidence ile) ---
+    var authorTitleResult = extractAuthorTitleWithConfidence(container, authorLink);
+    var authorTitle = authorTitleResult.value;
 
     // --- Yazar unvanindan sirket bilgisi (gelismis cikarim) ---
     var authorCompany = extractAuthorCompany(container, authorLink, authorTitle, authorHref);
@@ -223,9 +314,21 @@ var LinkedInParser = (function () {
       images: images,
       hashtags: hashtags,
       mentions: mentions,
+      // Confidence metadata — tuketici isterse kullanir
+      _confidence: {
+        authorName: authorNameResult.confidence,
+        authorImage: authorImageResult.confidence,
+        authorTitle: authorTitleResult.confidence,
+      },
     };
 
-    debug('Post parse edildi:', result.authorName, '|', (result.content || '').substring(0, 60) + '...');
+    debug(
+      'Post parse edildi:', result.authorName,
+      '(confidence: name=' + authorNameResult.confidence +
+      ', img=' + authorImageResult.confidence +
+      ', title=' + authorTitleResult.confidence + ')',
+      '|', (result.content || '').substring(0, 60) + '...'
+    );
 
     return result;
   }
@@ -256,10 +359,13 @@ var LinkedInParser = (function () {
       return links[0];
     }
 
-    // Fallback: aria-label icinde "profil" veya "profile" gecen linkler
-    var ariaLinks = container.querySelectorAll('a[aria-label*="profil"], a[aria-label*="profile"], a[aria-label*="Profil"], a[aria-label*="Profile"]');
-    if (ariaLinks && ariaLinks.length > 0) {
-      return ariaLinks[0];
+    // Fallback: aria-label icinde profil/profile gecen linkler (coklu dil)
+    var allLinks = container.querySelectorAll('a[aria-label]');
+    for (var al = 0; al < allLinks.length; al++) {
+      var ariaLabel = allLinks[al].getAttribute('aria-label') || '';
+      if (PROFILE_REGEX.test(ariaLabel)) {
+        return allLinks[al];
+      }
     }
 
     // Fallback: role="link" olan ve yazar bilgisi tasiyabilecek elementler
@@ -272,38 +378,117 @@ var LinkedInParser = (function () {
   }
 
   /**
-   * Yazar adini cikarir.
-   * SDUI'da: author link'inin parent container'i icindeki ilk anlamli <p> tag'inin textContent'i
-   * Fallback: aria-label, img alt, eski DOM secicileri
+   * Yazar adini cikarir — geriye uyumlu wrapper.
+   * Asil is extractAuthorNameWithConfidence'da yapilir.
    */
   function extractAuthorName(container, authorLink) {
-    if (!container) return '';
+    return extractAuthorNameWithConfidence(container, authorLink).value;
+  }
 
-    // Yontem 1: Author link'inin icindeki veya yakinindaki p tag'i
+  /**
+   * Yazar adini confidence skoru ile cikarir.
+   * Oncelik sirasi:
+   *  1. data-testid bazli (confidence: 3)
+   *  2. SDUI lockup span[dir="ltr"] (confidence: 3)
+   *  3. aria-label'dan isim cikarimi (confidence: 2)
+   *  4. Author link icindeki p tag'lari (confidence: 2)
+   *  5. Profil resmi img alt text'inden (confidence: 2, coklu dil)
+   *  6. Eski LinkedIn DOM selektorleri (confidence: 2)
+   *  7. Icerik analizi ile isim tespiti (confidence: 1)
+   */
+  function extractAuthorNameWithConfidence(container, authorLink) {
+    if (!container) return makeExtraction('', 0);
+
+    // --- GOREV 1: data-testid selektorleri EN BASA ---
+    // Confidence: 3 (en stabil)
+    var testIdSelectors = [
+      '[data-testid="actor-name"]',
+      '[data-testid*="author-name"]',
+      '[data-testid*="actor"] p:first-child',
+    ];
+    for (var ti = 0; ti < testIdSelectors.length; ti++) {
+      try {
+        var tiEl = container.querySelector(testIdSelectors[ti]);
+        if (tiEl) {
+          var tiText = (tiEl.textContent || '').trim();
+          if (tiText && tiText.length > 1 && tiText.length < 100 && !isHelperText(tiText)) {
+            debug('Yazar adi data-testid ile bulundu:', tiText);
+            return makeExtraction(tiText, 3);
+          }
+        }
+      } catch (e) {
+        // Devam et
+      }
+    }
+
+    // SDUI lockup span[dir="ltr"] — stabil selector
+    // Confidence: 3
+    try {
+      var lockupSelectors = [
+        '[data-testid="main-feed-activity-card__entity-lockup"] a span[dir="ltr"]',
+        '[data-testid*="entity-lockup"] a span[dir="ltr"]',
+      ];
+      for (var ls = 0; ls < lockupSelectors.length; ls++) {
+        var lockupEl = container.querySelector(lockupSelectors[ls]);
+        if (lockupEl) {
+          var lockupText = (lockupEl.textContent || '').trim();
+          if (lockupText && lockupText.length > 1 && lockupText.length < 100 && !isHelperText(lockupText)) {
+            debug('Yazar adi lockup span ile bulundu:', lockupText);
+            return makeExtraction(lockupText, 3);
+          }
+        }
+      }
+    } catch (e) {
+      // Devam et
+    }
+
+    // Eski stabil CSS class selector
+    // Confidence: 3
+    try {
+      var stableEl = container.querySelector('.update-components-actor__name span[dir="ltr"]');
+      if (stableEl) {
+        var stableText = (stableEl.textContent || '').trim();
+        if (stableText && stableText.length > 1 && stableText.length < 100 && !isHelperText(stableText)) {
+          debug('Yazar adi .update-components-actor__name ile bulundu:', stableText);
+          return makeExtraction(stableText, 3);
+        }
+      }
+    } catch (e) {
+      // Devam et
+    }
+
+    // --- GOREV 2: aria-label oncelikli isim cikarimi ---
+    // Confidence: 2
     if (authorLink) {
-      // Author link icindeki p tag'larina bak
+      var ariaLabel = authorLink.getAttribute('aria-label') || '';
+      if (ariaLabel && ariaLabel.length > 1 && ariaLabel.length < 100 && !isHelperText(ariaLabel)) {
+        var ariaName = extractNameFromAriaLabel(ariaLabel);
+        if (ariaName) {
+          debug('Yazar adi aria-label ile bulundu:', ariaName);
+          return makeExtraction(ariaName, 2);
+        }
+      }
+    }
+
+    // Author link icindeki p tag'lari
+    // Confidence: 2
+    if (authorLink) {
       var pTags = authorLink.querySelectorAll('p');
       for (var i = 0; i < pTags.length; i++) {
         var text = (pTags[i].textContent || '').trim();
         if (text.length > 1 && text.length < 100) {
           if (!isHelperText(text)) {
-            return text;
+            debug('Yazar adi author-link p-tag ile bulundu:', text);
+            return makeExtraction(text, 2);
           }
         }
-      }
-
-      // Author link'in aria-label'indan
-      var ariaLabel = authorLink.getAttribute('aria-label') || '';
-      if (ariaLabel && ariaLabel.length > 1 && ariaLabel.length < 100 && !isHelperText(ariaLabel)) {
-        // "Emrah'in profilini goruntule" -> "Emrah"
-        var ariaName = extractNameFromAriaLabel(ariaLabel);
-        if (ariaName) return ariaName;
       }
 
       // Author link'in direkt textContent'i
       var linkText = getDirectTextContent(authorLink);
       if (linkText && linkText.length > 1 && linkText.length < 100 && !isHelperText(linkText)) {
-        return linkText;
+        debug('Yazar adi author-link textContent ile bulundu:', linkText);
+        return makeExtraction(linkText, 2);
       }
 
       // Author link'in parent div'indeki ilk p
@@ -313,35 +498,35 @@ var LinkedInParser = (function () {
         for (var j = 0; j < pTags.length; j++) {
           var pText = (pTags[j].textContent || '').trim();
           if (pText.length > 1 && pText.length < 100 && !isHelperText(pText)) {
-            return pText;
+            debug('Yazar adi parent p-tag ile bulundu:', pText);
+            return makeExtraction(pText, 2);
           }
         }
       }
     }
 
-    // Yontem 2: Profil resmi img'inin alt attribute'undan
-    var profileImgSelectors = [
-      'img[alt*="profilini"]',
-      'img[alt*="profile"]',
-      'img[alt*="irketini"]',
-      'img[alt*="company"]',
-      'img[alt*="Profil"]',
-      'img[alt*="Profile"]',
-    ];
-    for (var pi = 0; pi < profileImgSelectors.length; pi++) {
-      try {
-        var profileImg = container.querySelector(profileImgSelectors[pi]);
-        if (profileImg) {
-          var alt = profileImg.getAttribute('alt') || '';
+    // --- GOREV 3: Profil resmi img alt text — coklu dil regex ---
+    // Confidence: 2
+    try {
+      var allImgs = container.querySelectorAll('img[alt]');
+      for (var pi = 0; pi < Math.min(allImgs.length, 10); pi++) {
+        var alt = (allImgs[pi].getAttribute('alt') || '').trim();
+        if (!alt || alt.length < 3) continue;
+        // Profil veya sirket goruntuleme alt text'i mi?
+        if (PROFILE_REGEX.test(alt) || COMPANY_REGEX.test(alt)) {
           var extracted = extractNameFromAltText(alt);
-          if (extracted) return extracted;
+          if (extracted) {
+            debug('Yazar adi img alt text ile bulundu:', extracted);
+            return makeExtraction(extracted, 2);
+          }
         }
-      } catch (e) {
-        // Devam et
       }
+    } catch (e) {
+      // Devam et
     }
 
-    // Yontem 3: Eski LinkedIn DOM yapisi (sirket/profil sayfalari)
+    // Eski LinkedIn DOM yapisi selektorleri
+    // Confidence: 2
     var oldSelectors = [
       '.update-components-actor__title .hoverable-link-text span[dir="ltr"] span[aria-hidden="true"] span',
       '.update-components-actor__title .hoverable-link-text span[dir="ltr"] span[aria-hidden="true"]',
@@ -357,26 +542,31 @@ var LinkedInParser = (function () {
         var oldEl = container.querySelector(oldSelectors[k]);
         if (oldEl) {
           var oldText = (oldEl.textContent || '').trim();
-          if (oldText && oldText.length > 1 && oldText.length < 100) return oldText;
+          if (oldText && oldText.length > 1 && oldText.length < 100) {
+            debug('Yazar adi eski selector ile bulundu:', oldText, '(' + oldSelectors[k] + ')');
+            return makeExtraction(oldText, 2);
+          }
         }
       } catch (e) {
         // Sessizce devam et
       }
     }
 
-    // Yontem 4: data-testid bazli yazar adi
-    var testIdSelectors = [
-      '[data-testid="actor-name"]',
-      '[data-testid*="author-name"]',
-      '[data-testid*="actor"] p:first-child',
-    ];
-    for (var ti = 0; ti < testIdSelectors.length; ti++) {
+    // --- GOREV 2: Icerik analizi ile isim tespiti ---
+    // Confidence: 1 (en kirilgan — son fallback)
+    // 2+ kelime, buyuk harfle baslar, rakam icermez, link/URL degil
+    if (authorLink) {
       try {
-        var tiEl = container.querySelector(testIdSelectors[ti]);
-        if (tiEl) {
-          var tiText = (tiEl.textContent || '').trim();
-          if (tiText && tiText.length > 1 && tiText.length < 100 && !isHelperText(tiText)) {
-            return tiText;
+        // Author link yakinindaki tum metin node'larini tara
+        var searchArea = authorLink.closest('div') || authorLink.parentElement;
+        if (searchArea) {
+          var candidateEls = searchArea.querySelectorAll('p, span, a');
+          for (var ca = 0; ca < Math.min(candidateEls.length, 15); ca++) {
+            var candidateText = (candidateEls[ca].textContent || '').trim();
+            if (looksLikePersonName(candidateText)) {
+              debug('Yazar adi icerik analizi ile bulundu (kirilgan):', candidateText);
+              return makeExtraction(candidateText, 1);
+            }
           }
         }
       } catch (e) {
@@ -384,57 +574,83 @@ var LinkedInParser = (function () {
       }
     }
 
-    return '';
+    return makeExtraction('', 0);
   }
 
   /**
-   * Yazar profil resmini cikarir.
-   * Birden fazla strateji ile profil resmi URL'si bulunur.
+   * Metnin kisi ismine benzeyip benzemedigini kontrol eder.
+   * 2+ kelime, her kelime buyuk harfle baslar, rakam icermez, URL degil.
+   */
+  function looksLikePersonName(text) {
+    if (!text) return false;
+    text = text.trim();
+    // Cok kisa veya cok uzun
+    if (text.length < 3 || text.length > 60) return false;
+    // Rakam iceriyor
+    if (/\d/.test(text)) return false;
+    // URL veya link
+    if (/https?:|www\.|\.com|\.org|\.net/i.test(text)) return false;
+    // Helper text
+    if (isHelperText(text)) return false;
+    // Zaman metni
+    if (isTimeText(text)) return false;
+    // En az 2 kelime
+    var words = text.split(/\s+/);
+    if (words.length < 2 || words.length > 6) return false;
+    // Her kelime buyuk harfle baslamali (latin + turkce karakterler)
+    for (var w = 0; w < words.length; w++) {
+      var firstChar = words[w].charAt(0);
+      // Buyuk harf kontrolu (A-Z + turkce buyuk harfler)
+      if (!/^[A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u024E\u0130\u011E\u015E\u00DC\u00D6\u00C7]/.test(firstChar)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Yazar profil resmini cikarir — geriye uyumlu wrapper.
    */
   function extractAuthorImage(container) {
-    if (!container) return null;
+    return extractAuthorImageWithConfidence(container).value;
+  }
 
-    // Strateji 1: Turkce LinkedIn alt text'ler
-    var trSelectors = [
-      'img[alt*="profilini g"]',
-      'img[alt*="irketini g"]',
-      'img[alt*="irketi g"]',
-      'img[alt*="Profilini"]',
+  /**
+   * Yazar profil resmini confidence ile cikarir.
+   * Oncelik sirasi:
+   *  1. data-testid bazli (confidence: 3)
+   *  2. URL pattern bazli — profile-displayphoto / company-logo (confidence: 3)
+   *  3. Coklu dil alt text regex (confidence: 2)
+   *  4. Container icindeki ilk profil boyutlu img (confidence: 1)
+   */
+  function extractAuthorImageWithConfidence(container) {
+    if (!container) return makeExtraction(null, 0);
+
+    // --- Strateji 1: data-testid bazli profil resmi (en stabil) ---
+    // Confidence: 3
+    var testIdSelectors = [
+      '[data-testid="actor-image"] img',
+      '[data-testid*="profile-photo"] img',
+      '[data-testid*="avatar"] img',
+      '[data-testid*="actor-photo"] img',
     ];
-    for (var t = 0; t < trSelectors.length; t++) {
+    for (var ti = 0; ti < testIdSelectors.length; ti++) {
       try {
-        var img = container.querySelector(trSelectors[t]);
-        if (img) {
-          var src = getImageSrc(img);
-          if (src) return src;
+        var tiImg = container.querySelector(testIdSelectors[ti]);
+        if (tiImg) {
+          var tiSrc = getImageSrc(tiImg);
+          if (tiSrc) {
+            debug('Profil resmi data-testid ile bulundu');
+            return makeExtraction(tiSrc, 3);
+          }
         }
       } catch (e) {
         // Devam et
       }
     }
 
-    // Strateji 2: Ingilizce LinkedIn alt text'ler
-    var enSelectors = [
-      'img[alt*="profile picture"]',
-      'img[alt*="profile photo"]',
-      'img[alt*="Profile"]',
-      'img[alt*="profile"]',
-      'img[alt*="company logo"]',
-      'img[alt*="Company"]',
-    ];
-    for (var e = 0; e < enSelectors.length; e++) {
-      try {
-        var enImg = container.querySelector(enSelectors[e]);
-        if (enImg) {
-          var enSrc = getImageSrc(enImg);
-          if (enSrc) return enSrc;
-        }
-      } catch (ex) {
-        // Devam et
-      }
-    }
-
-    // Strateji 3: URL pattern bazli — profile-displayphoto veya company-logo
+    // --- Strateji 2: URL pattern bazli — profile-displayphoto veya company-logo ---
+    // Confidence: 3
     var urlPatternSelectors = [
       'img[src*="profile-displayphoto"]',
       'img[src*="company-logo"]',
@@ -446,46 +662,52 @@ var LinkedInParser = (function () {
         var urlImg = container.querySelector(urlPatternSelectors[u]);
         if (urlImg) {
           var urlSrc = getImageSrc(urlImg);
-          if (urlSrc) return urlSrc;
+          if (urlSrc) {
+            debug('Profil resmi URL pattern ile bulundu');
+            return makeExtraction(urlSrc, 3);
+          }
         }
-      } catch (ex2) {
+      } catch (e) {
         // Devam et
       }
     }
 
-    // Strateji 4: data-testid bazli profil resmi
-    var testIdSelectors = [
-      '[data-testid="actor-image"] img',
-      '[data-testid*="profile-photo"] img',
-      '[data-testid*="avatar"] img',
-    ];
-    for (var ti = 0; ti < testIdSelectors.length; ti++) {
-      try {
-        var tiImg = container.querySelector(testIdSelectors[ti]);
-        if (tiImg) {
-          var tiSrc = getImageSrc(tiImg);
-          if (tiSrc) return tiSrc;
-        }
-      } catch (ex3) {
-        // Devam et
-      }
-    }
-
-    // Strateji 5: Container icindeki ilk kucuk profil boyutlu img
-    // (Post gorselleri genellikle buyuk olur, profil resimleri kucuk)
+    // --- Strateji 3: Coklu dil alt text regex ---
+    // Confidence: 2
     try {
-      var allImgs = container.querySelectorAll('img[src]');
-      for (var a = 0; a < Math.min(allImgs.length, 5); a++) {
-        var aSrc = allImgs[a].getAttribute('src') || '';
-        if (aSrc.includes('profile-displayphoto') || aSrc.includes('company-logo')) {
-          return aSrc;
+      var allImgs = container.querySelectorAll('img[alt]');
+      for (var ai = 0; ai < Math.min(allImgs.length, 10); ai++) {
+        var alt = (allImgs[ai].getAttribute('alt') || '').trim();
+        if (!alt) continue;
+        // Profil veya sirket goruntuleme alt text'i mi? (coklu dil)
+        if (PROFILE_REGEX.test(alt) || COMPANY_REGEX.test(alt) || VIEW_PROFILE_REGEX.test(alt) || VIEW_COMPANY_REGEX.test(alt)) {
+          var src = getImageSrc(allImgs[ai]);
+          if (src) {
+            debug('Profil resmi coklu dil alt text ile bulundu');
+            return makeExtraction(src, 2);
+          }
         }
       }
-    } catch (ex4) {
+    } catch (e) {
       // Devam et
     }
 
-    return null;
+    // --- Strateji 4: Container icindeki ilk kucuk profil boyutlu img ---
+    // Confidence: 1
+    try {
+      var smallImgs = container.querySelectorAll('img[src]');
+      for (var a = 0; a < Math.min(smallImgs.length, 5); a++) {
+        var aSrc = smallImgs[a].getAttribute('src') || '';
+        if (aSrc.includes('profile-displayphoto') || aSrc.includes('company-logo')) {
+          debug('Profil resmi genel img taramasi ile bulundu (kirilgan)');
+          return makeExtraction(aSrc, 1);
+        }
+      }
+    } catch (e) {
+      // Devam et
+    }
+
+    return makeExtraction(null, 0);
   }
 
   /**
@@ -507,19 +729,75 @@ var LinkedInParser = (function () {
   }
 
   /**
-   * Yazar title/role bilgisini cikarir (Person icin).
-   * SDUI'da: Author link altinda yazar adindan sonraki p elementi
+   * Yazar title/role bilgisini cikarir — geriye uyumlu wrapper.
    */
   function extractAuthorTitle(container, authorLink) {
-    if (!container) return '';
+    return extractAuthorTitleWithConfidence(container, authorLink).value;
+  }
 
+  /**
+   * Yazar title/role bilgisini confidence ile cikarir.
+   * Oncelik sirasi:
+   *  1. data-testid bazli (confidence: 3)
+   *  2. Author link icindeki p tag sirasi (confidence: 2)
+   *  3. Eski LinkedIn DOM selektorleri (confidence: 2)
+   */
+  function extractAuthorTitleWithConfidence(container, authorLink) {
+    if (!container) return makeExtraction('', 0);
+
+    // --- data-testid bazli (en stabil) ---
+    // Confidence: 3
+    var testIdSelectors = [
+      '[data-testid="actor-description"]',
+      '[data-testid*="author-title"]',
+      '[data-testid*="actor-subtitle"]',
+    ];
+    for (var ti = 0; ti < testIdSelectors.length; ti++) {
+      try {
+        var tiEl = container.querySelector(testIdSelectors[ti]);
+        if (tiEl) {
+          var tiText = (tiEl.textContent || '').trim();
+          if (tiText && !isHelperText(tiText) && !isTimeText(tiText)) {
+            debug('Yazar title data-testid ile bulundu:', tiText);
+            return makeExtraction(tiText, 3);
+          }
+        }
+      } catch (e) {
+        // Devam et
+      }
+    }
+
+    // --- SDUI lockup span bazli ---
+    // Confidence: 3
+    try {
+      var lockupDescSelectors = [
+        '[data-testid="main-feed-activity-card__entity-lockup"] span[data-testid="actor-description"]',
+        '[data-testid*="entity-lockup"] p:nth-child(2)',
+      ];
+      for (var ld = 0; ld < lockupDescSelectors.length; ld++) {
+        var ldEl = container.querySelector(lockupDescSelectors[ld]);
+        if (ldEl) {
+          var ldText = (ldEl.textContent || '').trim();
+          if (ldText && !isHelperText(ldText) && !isTimeText(ldText)) {
+            debug('Yazar title lockup ile bulundu:', ldText);
+            return makeExtraction(ldText, 3);
+          }
+        }
+      }
+    } catch (e) {
+      // Devam et
+    }
+
+    // --- Author link icindeki p tag'lari ---
+    // Confidence: 2
     if (authorLink) {
       // Author link icindeki p tag'lari — ikincisi genellikle title
       var pTags = authorLink.querySelectorAll('p');
       if (pTags.length >= 2) {
         var titleText = (pTags[1].textContent || '').trim();
         if (titleText && !isHelperText(titleText) && !isTimeText(titleText)) {
-          return titleText;
+          debug('Yazar title author-link p[1] ile bulundu:', titleText);
+          return makeExtraction(titleText, 2);
         }
       }
 
@@ -535,34 +813,37 @@ var LinkedInParser = (function () {
             continue;
           }
           if (foundAuthorName && txt.length > 1 && !isHelperText(txt) && !isTimeText(txt)) {
-            return txt;
+            debug('Yazar title parent p-tag sirasi ile bulundu:', txt);
+            return makeExtraction(txt, 2);
           }
         }
       }
     }
 
-    // Eski LinkedIn fallback selektorleri
+    // --- Eski LinkedIn fallback selektorleri ---
+    // Confidence: 2
     var oldSelectors = [
       '.update-components-actor__description .visually-hidden',
       '.feed-shared-actor__description .visually-hidden',
       '.update-components-actor__description span[aria-hidden="true"]',
       '.feed-shared-actor__description span[aria-hidden="true"]',
-      '[data-testid="actor-description"]',
-      '[data-testid*="author-title"]',
     ];
     for (var k = 0; k < oldSelectors.length; k++) {
       try {
         var oldEl = container.querySelector(oldSelectors[k]);
         if (oldEl) {
           var oldText = (oldEl.textContent || '').trim();
-          if (oldText) return oldText;
+          if (oldText) {
+            debug('Yazar title eski selector ile bulundu:', oldText);
+            return makeExtraction(oldText, 2);
+          }
         }
       } catch (e) {
         // Devam et
       }
     }
 
-    return '';
+    return makeExtraction('', 0);
   }
 
   // ============================================================
@@ -697,11 +978,11 @@ var LinkedInParser = (function () {
     if (!title) return '';
     title = title.trim();
 
-    // Turkce: "X sirketinde Y" veya "X şirketinde Y"
+    // Turkce: "X sirketinde Y" veya "X sirketinde Y"
     var trMatch = title.match(/^(.+?)\s+(?:şirketinde|sirketinde)\s+/i);
     if (trMatch) return trMatch[1].trim();
 
-    // Turkce: "Y, X" veya "Y · X" (ikinci kisim sirket olabilir)
+    // Turkce: "Y, X" veya "Y . X" (ikinci kisim sirket olabilir)
     // Ama sadece kisa ve anlamli metinler icin
 
     // " at " ayiricisi (en yaygin Ingilizce pattern)
@@ -720,7 +1001,7 @@ var LinkedInParser = (function () {
     var atSignMatch = title.match(/\s+@\s+(.+)$/);
     if (atSignMatch) return atSignMatch[1].trim();
 
-    // " · " (middle dot) ayiricisi — LinkedIn SDUI'da sik kullanilir
+    // " . " (middle dot) ayiricisi — LinkedIn SDUI'da sik kullanilir
     var dotMatch = title.match(/\s+[·•]\s+(.+)$/);
     if (dotMatch) return dotMatch[1].trim();
 
@@ -979,7 +1260,7 @@ var LinkedInParser = (function () {
         if (!parent) break;
         if (parent.tagName === 'P' || parent.tagName === 'SPAN' || parent.tagName === 'DIV') {
           var timeText = (parent.textContent || '').trim();
-          // "3 hafta •" veya "3 gun •" gibi metinlerden zamani cikar
+          // "3 hafta ." veya "3 gun ." gibi metinlerden zamani cikar
           var cleaned = timeText.replace(/[•·]/g, '').trim();
           if (cleaned && isTimeText(cleaned)) {
             var iso = relativeTimeToISO(cleaned);
@@ -1014,7 +1295,7 @@ var LinkedInParser = (function () {
     var allPs = container.querySelectorAll('p, span.visually-hidden');
     for (var j = 0; j < allPs.length; j++) {
       var pText = (allPs[j].textContent || '').trim();
-      // "3 hafta •" veya "2 gun •" formatinda mi?
+      // "3 hafta ." veya "2 gun ." formatinda mi?
       var cleanedP = pText.replace(/[•·]/g, '').trim();
       if (/^\d+\s*(hafta|gün|gun|ay|yıl|yil|saat|dakika|h|d|w|mo|y)/i.test(cleanedP)) {
         var isoP = relativeTimeToISO(cleanedP);
@@ -1149,14 +1430,20 @@ var LinkedInParser = (function () {
   }
 
   // ============================================================
-  //  ENGAGEMENT SAYILARI CIKARMA
+  //  ENGAGEMENT SAYILARI CIKARMA (Guclendirilmis)
   // ============================================================
 
   /**
    * Tum engagement metriklerini cikarir.
    * SDUI'da engagement sayilari span'lar icinde:
    * "8 tepki", "4 yorum", "1 yeniden yayinlama"
-   * Turkce ve Ingilizce destekler.
+   * Coklu dil destegi: TR, EN, DE, FR, ES, IT, PT
+   *
+   * Gelismis strateji:
+   *  1. aria-label bazli sayi cikarimi (en guvenilir)
+   *  2. data-testid bazli engagement alanlari
+   *  3. Span taramasi ile engagement metni
+   *  4. .social-details-social-counts fallback (eski DOM)
    */
   function extractEngagement(container) {
     var result = { likes: 0, comments: 0, shares: 0 };
@@ -1165,34 +1452,35 @@ var LinkedInParser = (function () {
     // Tum engagement metin kaynaklarini topla
     var engagementTexts = [];
 
-    // Yontem 1: aria-label icinde engagement bilgisi olan butonlar
-    var buttons = container.querySelectorAll('button[aria-label]');
+    // --- Strateji 1: aria-label bazli sayi cikarimi (en guvenilir) ---
+    // LinkedIn butonlarinda "123 reactions", "45 comments" gibi aria-label'lar var
+    var buttons = container.querySelectorAll('button[aria-label], a[aria-label]');
     for (var b = 0; b < buttons.length; b++) {
-      var ariaLabel = (buttons[b].getAttribute('aria-label') || '').toLowerCase();
-      if (/tepki|reaction|begeni|like|yorum|comment|yeniden|repost|share|paylasim/.test(ariaLabel)) {
-        engagementTexts.push(ariaLabel);
+      var ariaLabel = (buttons[b].getAttribute('aria-label') || '');
+      if (!ariaLabel) continue;
+
+      // Genel regex: sayi + engagement keyword (coklu dil)
+      var ariaMatch = ariaLabel.match(/(\d[\d,.]*)\s*(reaction|like|tepki|begen|gef[aä]llt|j'aime|mi\s*piace|me\s*gusta|comment|yorum|kommentar|commentaire|commento|comentario|repost|share|payla[sş]|teilen|partager|condivid|compartir|yeniden)/i);
+      if (ariaMatch) {
+        engagementTexts.push(ariaLabel.toLowerCase());
+        continue;
+      }
+
+      // Ters sira: keyword + sayi (bazi dillerde "reactions 123" seklinde olabilir)
+      var reverseMatch = ariaLabel.match(/(reaction|like|tepki|comment|yorum|repost|share|payla[sş]|yeniden)\w*\s*[:\-]?\s*(\d[\d,.]*)/i);
+      if (reverseMatch) {
+        engagementTexts.push(ariaLabel.toLowerCase());
       }
     }
 
-    // Yontem 2: Span'lar icindeki engagement metinleri
-    var allSpans = container.querySelectorAll('span');
-    for (var s = 0; s < allSpans.length; s++) {
-      var spanText = (allSpans[s].textContent || '').trim().toLowerCase();
-      // Sadece engagement metni iceren kisa span'lar
-      if (spanText.length < 50 && /\d/.test(spanText)) {
-        if (/tepki|reaction|begeni|like|yorum|comment|yeniden|repost|share|paylasim/.test(spanText)) {
-          engagementTexts.push(spanText);
-        }
-      }
-    }
-
-    // Yontem 3: data-testid bazli engagement alanlari
+    // --- Strateji 2: data-testid bazli engagement alanlari ---
     var engagementTestIds = [
       '[data-testid*="social-counts"]',
       '[data-testid*="reaction-count"]',
       '[data-testid*="comment-count"]',
       '[data-testid*="repost-count"]',
       '[data-testid*="share-count"]',
+      '[data-testid*="likes-count"]',
     ];
     for (var et = 0; et < engagementTestIds.length; et++) {
       try {
@@ -1208,23 +1496,36 @@ var LinkedInParser = (function () {
       }
     }
 
-    // Toplanan metinlerden sayilari cikar
+    // --- Strateji 3: Span'lar icindeki engagement metinleri ---
+    var allSpans = container.querySelectorAll('span');
+    for (var s = 0; s < allSpans.length; s++) {
+      var spanText = (allSpans[s].textContent || '').trim().toLowerCase();
+      // Sadece engagement metni iceren kisa span'lar
+      if (spanText.length < 50 && /\d/.test(spanText)) {
+        if (LIKES_REGEX.test(spanText) || COMMENTS_REGEX.test(spanText) || SHARES_REGEX.test(spanText)) {
+          engagementTexts.push(spanText);
+        }
+      }
+    }
+
+    // Toplanan metinlerden sayilari cikar (coklu dil regex ile)
     for (var i = 0; i < engagementTexts.length; i++) {
       var txt = engagementTexts[i];
       var num = extractNumber(txt);
       if (num <= 0) continue;
 
-      if (/tepki|reaction|begeni|like/i.test(txt)) {
+      if (LIKES_REGEX.test(txt)) {
         result.likes = Math.max(result.likes, num);
-      } else if (/yorum|comment/i.test(txt)) {
+      } else if (COMMENTS_REGEX.test(txt)) {
         result.comments = Math.max(result.comments, num);
-      } else if (/yeniden|repost|share|paylasim/i.test(txt)) {
+      } else if (SHARES_REGEX.test(txt)) {
         result.shares = Math.max(result.shares, num);
       }
     }
 
-    // Fallback: Eski LinkedIn secicileri
+    // --- Strateji 4: Eski LinkedIn secicileri (.social-details-social-counts) ---
     if (result.likes === 0 && result.comments === 0 && result.shares === 0) {
+      // .social-details-social-counts__reactions-count
       result.likes = extractEngagementCount(
         queryOld(container, '.social-details-social-counts__reactions-count')
       );
@@ -1276,7 +1577,7 @@ var LinkedInParser = (function () {
   /**
    * Post icerisindeki gorselleri toplar.
    * SDUI'da: img[alt="Resmi goruntule"] — media.licdn.com URL'li
-   * Turkce ve Ingilizce destekler.
+   * Coklu dil destegi.
    */
   function extractImages(container) {
     if (!container) return [];
@@ -1287,17 +1588,23 @@ var LinkedInParser = (function () {
     // Post gorselleri icin URL pattern'leri — bu pattern'ler kesinlikle post gorseli
     var postImageUrlPatterns = ['feedshare-shrink', 'article-cover_image', 'mediaUploadImage', 'feedshare_'];
 
-    // Birincil: SDUI post gorselleri (alt text bazli)
+    // Birincil: SDUI post gorselleri (alt text bazli — coklu dil)
     var imgSelectors = [
-      'img[alt="Resmi görüntüle"]',     // Turkce
+      'img[alt="Resmi g\u00f6r\u00fcnt\u00fcle"]',     // Turkce (goruntule)
       'img[alt="Resmi goruntule"]',      // Turkce (ASCII)
       'img[alt="View image"]',           // Ingilizce
+      'img[alt="Ver imagen"]',           // Ispanyolca
+      'img[alt="Bild anzeigen"]',        // Almanca
+      'img[alt="Voir l\'image"]',        // Fransizca
       'img[alt*="Resmi"]',              // Turkce genel
       'img[alt*="resmi"]',              // Turkce kucuk harf
       'img[alt*="Image"]',              // Ingilizce genel
       'img[alt*="image"]',              // Ingilizce kucuk harf
       'img[alt*="photo"]',              // Ingilizce foto
-      'img[alt*="Foto"]',               // Turkce foto
+      'img[alt*="Foto"]',               // Turkce/Almanca foto
+      'img[alt*="imagen"]',             // Ispanyolca
+      'img[alt*="imagem"]',             // Portekizce
+      'img[alt*="Bild"]',               // Almanca
     ];
 
     for (var s = 0; s < imgSelectors.length; s++) {
@@ -1526,19 +1833,43 @@ var LinkedInParser = (function () {
 
   /**
    * aria-label metninden yazar adini cikarir.
-   * "Emrah'in profilini goruntule" -> "Emrah"
-   * "View John's profile" -> "John"
+   * Coklu dil destegi:
+   * TR: "Emrah'in profilini goruntule" -> "Emrah"
+   * EN: "View John's profile" -> "John"
+   * DE: "Profil von Max anzeigen" -> "Max"
+   * FR: "Voir le profil de Marie" -> "Marie"
+   * ES: "Ver el perfil de Juan" -> "Juan"
    */
   function extractNameFromAriaLabel(ariaLabel) {
     if (!ariaLabel) return null;
 
-    // Turkce: "X'in profilini goruntule" veya "X'nın profilini..."
+    // Turkce: "X'in profilini goruntule" veya "X'nin profilini..."
     var trMatch = ariaLabel.match(/^(.+?)(?:'|'|&#39;)?(?:n[iı]n?\s|'s?\s)/i);
     if (trMatch) return trMatch[1].trim();
 
     // Ingilizce: "View X's profile" veya "X's profile"
     var enMatch = ariaLabel.match(/(?:View\s+)?(.+?)(?:'s?\s+profile)/i);
     if (enMatch) return enMatch[1].trim();
+
+    // Almanca: "Profil von X anzeigen"
+    var deMatch = ariaLabel.match(/(?:Profil\s+von\s+)(.+?)(?:\s+anzeigen)/i);
+    if (deMatch) return deMatch[1].trim();
+
+    // Fransizca: "Voir le profil de X"
+    var frMatch = ariaLabel.match(/(?:Voir\s+le\s+profil\s+de\s+)(.+?)$/i);
+    if (frMatch) return frMatch[1].trim();
+
+    // Ispanyolca: "Ver el perfil de X"
+    var esMatch = ariaLabel.match(/(?:Ver\s+el\s+perfil\s+de\s+)(.+?)$/i);
+    if (esMatch) return esMatch[1].trim();
+
+    // Portekizce: "Ver o perfil de X"
+    var ptMatch = ariaLabel.match(/(?:Ver\s+o\s+perfil\s+de\s+)(.+?)$/i);
+    if (ptMatch) return ptMatch[1].trim();
+
+    // Italyanca: "Visualizza il profilo di X"
+    var itMatch = ariaLabel.match(/(?:Visualizza\s+il\s+profilo\s+di\s+)(.+?)$/i);
+    if (itMatch) return itMatch[1].trim();
 
     // "Visit X" pattern
     var visitMatch = ariaLabel.match(/(?:Visit|Ziyaret)\s+(.+?)(?:'s?\s|$)/i);
@@ -1549,8 +1880,9 @@ var LinkedInParser = (function () {
 
   /**
    * img alt text'inden yazar adini cikarir.
-   * "Emrah'in profilini goruntule" -> "Emrah"
-   * "View Emrah's profile" -> "Emrah"
+   * Coklu dil destegi.
+   * TR: "Emrah'in profilini goruntule" -> "Emrah"
+   * EN: "View Emrah's profile" -> "Emrah"
    */
   function extractNameFromAltText(alt) {
     if (!alt) return null;
@@ -1563,17 +1895,34 @@ var LinkedInParser = (function () {
     var enMatch = alt.match(/(?:View\s+)?(.+?)(?:'s?\s+profile)/i);
     if (enMatch) return enMatch[1].trim();
 
+    // Almanca: "Profilbild von X" veya "Profil von X"
+    var deMatch = alt.match(/(?:Profil(?:bild)?\s+von\s+)(.+?)$/i);
+    if (deMatch) return deMatch[1].trim();
+
+    // Fransizca: "Photo de profil de X"
+    var frMatch = alt.match(/(?:(?:Photo|Image)\s+de\s+profil\s+de\s+)(.+?)$/i);
+    if (frMatch) return frMatch[1].trim();
+
+    // Ispanyolca: "Foto de perfil de X"
+    var esMatch = alt.match(/(?:Foto\s+de\s+perfil\s+de\s+)(.+?)$/i);
+    if (esMatch) return esMatch[1].trim();
+
+    // Genel: "X profile picture" veya "X company logo"
+    var generalMatch = alt.match(/^(.+?)\s+(?:profile\s+picture|company\s+logo|profile\s+photo)/i);
+    if (generalMatch) return generalMatch[1].trim();
+
     return null;
   }
 
   /**
    * Metnin yardimci/helper metin olup olmadigini kontrol eder.
    * Profil goruntuleme linki, "takip et" gibi metinleri filtreler.
+   * Coklu dil destegi.
    */
   function isHelperText(text) {
     if (!text) return false;
     var lower = text.toLowerCase();
-    return /profilini\s*g|profili\s*g|view\s*profile|takip\s*et|follow|connect|ba[gğ]lan|mesaj\s*gonder|send\s*message|daha\s*fazla|more$/i.test(lower);
+    return /profilini\s*g|profili\s*g|view\s*profile|takip\s*et|follow|connect|ba[gğ]lan|mesaj\s*gonder|send\s*message|daha\s*fazla|more$|voir\s*le\s*profil|ver\s*el\s*perfil|profil\s*anzeigen|seguir|folgen|suivre|nachricht/i.test(lower);
   }
 
   /**
@@ -1677,6 +2026,132 @@ var LinkedInParser = (function () {
   }
 
   // ============================================================
+  //  SELECTOR SELF-TEST MEKANIZMASI
+  // ============================================================
+
+  /**
+   * Parser yüklendiginde veya talep uzerine calistirilabilen
+   * selector self-test fonksiyonu.
+   * Hangi selektorlerin sayfada eslestigi raporlanir.
+   * Boylece DOM degisiklikleri erken tespit edilir.
+   */
+  function selfTest() {
+    var selectors = {
+      postContainer: [
+        'div[role="listitem"]',
+        '[data-testid="main-feed-activity-card"]',
+        '[data-testid*="feed-activity"]',
+        'div[data-testid="lazy-column"]',
+        'div.feed-shared-update-v2',
+        '[data-urn*="activity"]',
+        '.occludable-update',
+      ],
+      authorName: [
+        '[data-testid="actor-name"]',
+        '[data-testid*="author-name"]',
+        '[data-testid="main-feed-activity-card__entity-lockup"] a span[dir="ltr"]',
+        '.update-components-actor__name span[dir="ltr"]',
+        '.update-components-actor__name .visually-hidden',
+        '.feed-shared-actor__name .visually-hidden',
+      ],
+      authorTitle: [
+        '[data-testid="actor-description"]',
+        '[data-testid*="author-title"]',
+        '.update-components-actor__description .visually-hidden',
+        '.feed-shared-actor__description .visually-hidden',
+      ],
+      authorImage: [
+        '[data-testid="actor-image"] img',
+        '[data-testid*="profile-photo"] img',
+        '[data-testid*="avatar"] img',
+        'img[src*="profile-displayphoto"]',
+        'img[src*="company-logo"]',
+      ],
+      postContent: [
+        'span[data-testid="expandable-text-box"]',
+        '[data-testid="main-feed-activity-card__commentary"]',
+        '[data-testid*="commentary"]',
+        '.feed-shared-update-v2__description .break-words',
+        '.update-components-text .break-words',
+      ],
+      engagement: [
+        '[data-testid*="social-counts"]',
+        '[data-testid*="reaction-count"]',
+        '[data-testid*="comment-count"]',
+        '.social-details-social-counts__reactions-count',
+        'button[aria-label*="reaction"]',
+        'button[aria-label*="tepki"]',
+      ],
+      timestamp: [
+        '[data-testid="actor-subDescription"]',
+        '[data-testid*="timestamp"]',
+        'svg#globe-americas-small',
+        'use[href*="globe-americas"]',
+        'time[datetime]',
+      ],
+      postUrl: [
+        '[componentkey]',
+        '[data-urn]',
+        'a[href*="/feed/update/"]',
+        'a[href*="activity"]',
+      ],
+    };
+
+    var results = {};
+    var totalMatched = 0;
+    var totalSelectors = 0;
+
+    for (var key in selectors) {
+      if (!selectors.hasOwnProperty(key)) continue;
+      var selectorList = selectors[key];
+      results[key] = [];
+
+      for (var s = 0; s < selectorList.length; s++) {
+        totalSelectors++;
+        try {
+          var count = document.querySelectorAll(selectorList[s]).length;
+          results[key].push({
+            selector: selectorList[s],
+            found: count,
+          });
+          if (count > 0) totalMatched++;
+        } catch (e) {
+          results[key].push({
+            selector: selectorList[s],
+            found: 0,
+            error: e.message,
+          });
+        }
+      }
+    }
+
+    var summary = {
+      matchedSelectors: totalMatched,
+      totalSelectors: totalSelectors,
+      matchRate: totalSelectors > 0 ? ((totalMatched / totalSelectors) * 100).toFixed(1) + '%' : '0%',
+      pageType: detectPageType(),
+      url: window.location.href,
+    };
+
+    console.log(LOG + ' Selector self-test:', JSON.stringify(summary, null, 2));
+    console.log(LOG + ' Selector detay:', JSON.stringify(results, null, 2));
+
+    // Hicbir post container bulunamazsa uyari ver
+    var postContainerFound = false;
+    for (var pc = 0; pc < results.postContainer.length; pc++) {
+      if (results.postContainer[pc].found > 0) {
+        postContainerFound = true;
+        break;
+      }
+    }
+    if (!postContainerFound && detectPageType() !== 'unknown') {
+      console.warn(LOG + ' UYARI: Hicbir post container selektoru eslesmedi! LinkedIn DOM degismis olabilir.');
+    }
+
+    return { summary: summary, details: results };
+  }
+
+  // ============================================================
   //  DEBUG MODU
   // ============================================================
 
@@ -1711,8 +2186,9 @@ var LinkedInParser = (function () {
     }
 
     try {
-      var posts = parsePostCards();
-      report.parsedPosts = posts.length;
+      var parseResult = parsePostCards();
+      report.parsedPosts = parseResult.length;
+      report.meta = parseResult.meta || null;
 
       // Her post icin hangi alanlarin bos oldugunu raporla
       var fieldStats = {
@@ -1720,24 +2196,55 @@ var LinkedInParser = (function () {
         content: 0, publishedAt: 0, linkedinPostUrl: 0,
         authorProfilePicture: 0, hashtags: 0, mentions: 0,
       };
-      for (var i = 0; i < posts.length; i++) {
-        if (posts[i].authorName) fieldStats.authorName++;
-        if (posts[i].authorTitle) fieldStats.authorTitle++;
-        if (posts[i].authorCompany) fieldStats.authorCompany++;
-        if (posts[i].content) fieldStats.content++;
-        if (posts[i].publishedAt) fieldStats.publishedAt++;
-        if (posts[i].linkedinPostUrl) fieldStats.linkedinPostUrl++;
-        if (posts[i].authorProfilePicture) fieldStats.authorProfilePicture++;
-        if (posts[i].hashtags && posts[i].hashtags.length > 0) fieldStats.hashtags++;
-        if (posts[i].mentions && posts[i].mentions.length > 0) fieldStats.mentions++;
+      var confidenceStats = { name3: 0, name2: 0, name1: 0, name0: 0 };
+
+      for (var i = 0; i < parseResult.length; i++) {
+        var p = parseResult[i];
+        if (p.authorName) fieldStats.authorName++;
+        if (p.authorTitle) fieldStats.authorTitle++;
+        if (p.authorCompany) fieldStats.authorCompany++;
+        if (p.content) fieldStats.content++;
+        if (p.publishedAt) fieldStats.publishedAt++;
+        if (p.linkedinPostUrl) fieldStats.linkedinPostUrl++;
+        if (p.authorProfilePicture) fieldStats.authorProfilePicture++;
+        if (p.hashtags && p.hashtags.length > 0) fieldStats.hashtags++;
+        if (p.mentions && p.mentions.length > 0) fieldStats.mentions++;
+
+        // Confidence dagilimi
+        if (p._confidence) {
+          var nc = p._confidence.authorName;
+          if (nc === 3) confidenceStats.name3++;
+          else if (nc === 2) confidenceStats.name2++;
+          else if (nc === 1) confidenceStats.name1++;
+          else confidenceStats.name0++;
+        }
       }
       report.fieldStats = fieldStats;
+      report.confidenceDistribution = confidenceStats;
     } catch (e) {
       report.errors.push('parsePostCards hatasi: ' + e.message);
     }
 
     console.log(LOG + ' Teshis Raporu:', JSON.stringify(report, null, 2));
     return report;
+  }
+
+  // ---- Sayfa yuklendiginde self-test calistir (sadece debug log) ----
+  try {
+    if (typeof document !== 'undefined' && document.readyState !== 'loading') {
+      // Sayfanin yuklenmesinden sonra kisa bir gecikme ile calistir
+      setTimeout(function () {
+        selfTest();
+      }, 3000);
+    } else if (typeof document !== 'undefined') {
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+          selfTest();
+        }, 3000);
+      });
+    }
+  } catch (e) {
+    // Self-test hata verirse parser'i bozmasin
   }
 
   // ---- Public API ----
@@ -1751,5 +2258,6 @@ var LinkedInParser = (function () {
     // Yeni API'ler
     setDebug: setDebug,
     diagnose: diagnose,
+    selfTest: selfTest,
   };
 })();

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getExcludedBrands, applyBrandFilter } from '@/lib/brand-filter';
+import { get, set, cacheKey } from '@/lib/cache';
+
+const CACHE_TTL_MS = 60_000; // 60 saniye
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +27,15 @@ export async function GET() {
         },
         { status: 401 }
       );
+    }
+
+    // Cache kontrol
+    const key = cacheKey(user.id, 'dashboard:stats');
+    const cached = get<Record<string, unknown>>(key);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: { 'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120' },
+      });
     }
 
     // Haric tutulan markalari cek
@@ -167,7 +179,7 @@ export async function GET() {
       createdAt: sr.created_at,
     }));
 
-    return NextResponse.json({
+    const responseData = {
       totalLeads: leadsResult.count ?? 0,
       leadsThisWeek: leadsThisWeekResult.count ?? 0,
       totalPosts,
@@ -177,6 +189,13 @@ export async function GET() {
       messageApprovalRate,
       pipelineBreakdown,
       recentSearchRuns,
+    };
+
+    // Sonucu cache'le (60sn)
+    set(key, responseData, CACHE_TTL_MS);
+
+    return NextResponse.json(responseData, {
+      headers: { 'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120' },
     });
   } catch (error) {
     console.error('Dashboard stats hatasi:', error);

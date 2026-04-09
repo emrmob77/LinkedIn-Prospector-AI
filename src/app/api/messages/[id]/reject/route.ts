@@ -17,6 +17,8 @@ function mapMessage(row: any) {
     sentAt: row.sent_at,
     originalBody: row.original_body,
     editCount: row.edit_count,
+    deliveryStatus: row.delivery_status || 'pending',
+    deliveryError: row.delivery_error || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

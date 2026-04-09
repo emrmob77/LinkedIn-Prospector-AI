@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { encryptApiKey, decryptApiKey, maskApiKey } from '@/lib/crypto';
-import type { UserSettingsPublic, AIProvider } from '@/types/models';
+import type { UserSettingsPublic, AIProvider, EmailProvider } from '@/types/models';
 
 const VALID_PROVIDERS: AIProvider[] = ['anthropic', 'openai', 'google', 'openrouter'];
 
@@ -68,6 +68,15 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
       companyContext: DEFAULTS.companyContext,
       messagePrompt: DEFAULTS.messagePrompt,
       excludedBrands: [],
+      // Email gonderim ayarlari
+      emailProvider: 'resend',
+      hasResendKey: false,
+      resendKeyHint: null,
+      senderEmail: null,
+      smtpHost: null,
+      smtpPort: 587,
+      smtpUser: null,
+      hasSmtpPassword: false,
     };
   }
 
@@ -106,6 +115,15 @@ function toPublic(row: Record<string, unknown> | null): UserSettingsPublic {
     companyContext: (row.company_context as string) || DEFAULTS.companyContext,
     messagePrompt: (row.message_prompt as string) || DEFAULTS.messagePrompt,
     excludedBrands,
+    // Email gonderim ayarlari
+    emailProvider: ((row.email_provider as string) || 'resend') as EmailProvider,
+    hasResendKey: !!row.resend_api_key_encrypted,
+    resendKeyHint: getKeyHint(row.resend_api_key_encrypted as string | null),
+    senderEmail: (row.sender_email as string) || null,
+    smtpHost: (row.smtp_host as string) || null,
+    smtpPort: Number(row.smtp_port ?? 587),
+    smtpUser: (row.smtp_user as string) || null,
+    hasSmtpPassword: !!row.smtp_password_encrypted,
   };
 }
 
@@ -164,6 +182,13 @@ export async function PUT(request: NextRequest) {
       companyContext,
       messagePrompt,
       excludedBrands,
+      emailProvider,
+      resendApiKey,
+      senderEmail,
+      smtpHost,
+      smtpPort,
+      smtpUser,
+      smtpPassword,
     } = body as {
       anthropicApiKey?: string;
       openaiApiKey?: string;
@@ -183,6 +208,13 @@ export async function PUT(request: NextRequest) {
       companyContext?: string;
       messagePrompt?: string;
       excludedBrands?: string[];
+      emailProvider?: string;
+      resendApiKey?: string;
+      senderEmail?: string;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpUser?: string;
+      smtpPassword?: string;
     };
 
     // Güncellenecek alanları hazırla
@@ -197,6 +229,7 @@ export async function PUT(request: NextRequest) {
       [openaiApiKey, 'openai_api_key_encrypted'],
       [googleApiKey, 'google_api_key_encrypted'],
       [openrouterApiKey, 'openrouter_api_key_encrypted'],
+      [resendApiKey, 'resend_api_key_encrypted'],
     ];
 
     for (const [value, column] of keyFields) {
@@ -237,6 +270,20 @@ export async function PUT(request: NextRequest) {
     if (classificationPrompt !== undefined) updates.classification_prompt = classificationPrompt.trim() || null;
     if (companyContext !== undefined) updates.company_context = companyContext.trim() || null;
     if (messagePrompt !== undefined) updates.message_prompt = messagePrompt.trim() || null;
+    if (emailProvider !== undefined) {
+      const validEmailProviders = ['resend', 'gmail', 'smtp'];
+      if (!validEmailProviders.includes(emailProvider)) {
+        return NextResponse.json({ error: 'Gecersiz email provider' }, { status: 400 });
+      }
+      updates.email_provider = emailProvider;
+    }
+    if (senderEmail !== undefined) updates.sender_email = senderEmail.trim() || null;
+    if (smtpHost !== undefined) updates.smtp_host = smtpHost.trim() || null;
+    if (smtpPort !== undefined) updates.smtp_port = Math.min(65535, Math.max(1, smtpPort));
+    if (smtpUser !== undefined) updates.smtp_user = smtpUser.trim() || null;
+    if (smtpPassword !== undefined) {
+      updates.smtp_password_encrypted = smtpPassword.trim() === '' ? null : encryptApiKey(smtpPassword.trim());
+    }
     if (excludedBrands !== undefined) {
       if (!Array.isArray(excludedBrands) || !excludedBrands.every((b: unknown) => typeof b === 'string')) {
         return NextResponse.json({ error: 'excludedBrands string dizisi olmali' }, { status: 400 });

@@ -5,6 +5,7 @@ import {
   ActionType,
   MessageType,
   EntityType,
+  DeliveryStatus,
 } from './enums';
 
 // ============================================
@@ -70,6 +71,7 @@ export interface Lead {
   title: string | null;
   company: string | null;
   linkedinUrl: string;
+  email: string | null;
   stage: PipelineStage;
   score: number;
   scoreBreakdown: LeadScoreBreakdown | null;
@@ -109,6 +111,8 @@ export interface Message {
   sentAt: Date | null;
   originalBody: string | null;
   editCount: number;
+  deliveryStatus: DeliveryStatus;
+  deliveryError: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -164,6 +168,7 @@ export interface SavedSearch {
 // ============================================
 
 export type AIProvider = 'anthropic' | 'openai' | 'google' | 'openrouter';
+export type EmailProvider = 'resend' | 'gmail' | 'smtp';
 
 export interface UserSettings {
   id: string;
@@ -186,6 +191,14 @@ export interface UserSettings {
   companyContext: string;
   messagePrompt: string;
   excludedBrands: string[];
+  // Email gonderim
+  emailProvider: EmailProvider;
+  resendApiKey: string | null;
+  senderEmail: string | null;
+  smtpHost: string | null;
+  smtpPort: number;
+  smtpUser: string | null;
+  smtpPassword: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -215,4 +228,13 @@ export interface UserSettingsPublic {
   companyContext: string;
   messagePrompt: string;
   excludedBrands: string[];
+  // Email gonderim ayarlari
+  emailProvider: EmailProvider;
+  hasResendKey: boolean;
+  resendKeyHint: string | null;
+  senderEmail: string | null;
+  smtpHost: string | null;
+  smtpPort: number;
+  smtpUser: string | null;
+  hasSmtpPassword: boolean;
 }
